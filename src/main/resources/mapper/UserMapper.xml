@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.UserMapper">
+	<resultMap id="userMap" type="java.util.HashMap">
+		<result property="userid" column="userid" />
+		<result property="name" column="name" />
+		<result property="role" column="role" />
+	</resultMap>
+	
+	<select id="getUserInfo" parameterType="map" resultType="map">
+		SELECT 
+			MAC.ACC_ID
+			, MAC.AGC_SERIAL
+			, MAC.USER_ID
+			, MAC.USER_PASSWORD
+			, MAC.USER_NAME
+			, MAC.USER_TEL
+			, MAG.AGC_ID
+			, MAG.AGC_NAME
+			, CASE WHEN INSTR(MAC.AGC_SERIAL, #{adminAgencySerial}) > 0 THEN 'Y' ELSE 'N'
+	  		  END AS ADMIN_YN
+		FROM MAS_ACCOUNT MAC
+		LEFT JOIN MAS_AGENCY MAG ON MAC.AGC_SERIAL = MAG.AGC_SERIAL
+		WHERE MAC.USER_ID = #{userId}
+	</select>
+	
+	<select id="lookup" parameterType="java.util.Map" resultType="int">
+		/** UserMapper.lookup(유저 아이디 중복 체크) **/
+		SELECT COUNT(*)
+		FROM MAS_ACCOUNT
+		WHERE 1=1
+		AND USER_ID = #{USER_ID}
+	</select>
+	
+	<insert id="insertUser" parameterType="java.util.Map">
+		INSERT INTO MAS_ACCOUNT (
+			AGC_SERIAL
+			, USER_ID
+			, USER_PASSWORD
+			, USER_NAME
+			, USER_TEL
+		) VALUES (
+			#{AGC_SERIAL}
+			, #{USER_ID}
+			, #{USER_PASSWORD}
+			, #{USER_NAME}
+			, #{USER_TEL}
+		)
+	</insert>
+	
+	<update id="setAccountAgcSerialByOriginalAgcSerial" parameterType="map">
+		UPDATE MAS_ACCOUNT SET 
+			AGC_SERIAL = #{AGC_SERIAL}
+		WHERE
+			AGC_SERIAL = #{ORIGINAL_AGC_SERIAL}
+	</update>
+	
+	<select id="findId" parameterType="java.util.Map" resultType="java.util.Map">
+		SELECT *
+		FROM MAS_ACCOUNT
+		WHERE AGC_SERIAL = #{AGC_SERIAL}
+		AND USER_NAME = #{USER_NAME}
+		AND USER_TEL = #{USER_TEL}
+	</select>
+	
+	<select id="findPw" parameterType="java.util.Map" resultType="java.util.Map">
+		SELECT *
+		FROM MAS_ACCOUNT
+		WHERE AGC_SERIAL = #{AGC_SERIAL}
+		AND USER_ID = #{USER_ID}
+		AND USER_NAME = #{USER_NAME}
+		AND USER_TEL = #{USER_TEL}
+	</select>
+	
+	<update id="setUserInfo" parameterType="java.util.Map">
+		UPDATE MAS_ACCOUNT SET
+			USER_PASSWORD = #{USER_PASSWORD}
+			<if test="USER_TEL != '' and USER_TEL != null">,USER_TEL = #{USER_TEL}</if>
+		WHERE USER_ID = #{USER_ID}
+	</update>
+	
+</mapper>

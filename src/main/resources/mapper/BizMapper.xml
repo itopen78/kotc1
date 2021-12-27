@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.BizMapper">
+	<sql id="getBusinessPlanRefineQuery">
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.PLAN_ID
+			, T1.AGC_ID
+			, T2.AGC_NAME
+			, T1.PLAN_TITLE
+			, T1.NATIONAL_YN
+			, T1.NEW_YN
+			, T1.CAREER_YN
+			, T1.LICENSE_YN
+			, T1.ADVANCE_YN
+			, T1.NATIONAL_COST
+			, T1.NEW_COST
+			, T1.CAREER_COST
+			, T1.LICENSE_COST
+			, T1.ADVANCE_COST
+			, T1.PERSONNEL
+			, T1.REQUEST_ID
+			, IFNULL(T3.USER_NAME, '') AS USER_NAME
+			, DATE_FORMAT(T1.REQUEST_DATE, '%Y.%m.%d') AS REQUEST_DATE
+			, T1.APPLY_ID
+			, T1.APPLY_DATE
+			, T1.FINAL_APL_ID
+			, IFNULL(DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d'), '') AS FINAL_APL_DATE
+			, T1.CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, T1.CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, T1.CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(1, 1, T1.CD_CHNG_STATE), '') AS CD_CHNG_STATE_NAME
+			, T1.PLAN_NOTE
+		FROM MAS_BUSINESS_PLAN T1
+		LEFT JOIN MAS_AGENCY  T2 ON T1.AGC_ID = T2.AGC_ID
+		LEFT JOIN MAS_ACCOUNT T3 ON T1.REQUEST_ID = T3.ACC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		<if test="START_REQUEST_DATE != null and START_REQUEST_DATE != ''">
+			AND DATE_FORMAT(T1.REQUEST_DATE, '%Y-%m-%d') >= #{START_REQUEST_DATE}
+		</if>
+		<if test="END_REQUEST_DATE != null and END_REQUEST_DATE != ''">
+			AND DATE_FORMAT(T1.REQUEST_DATE, '%Y-%m-%d') <![CDATA[<=]]> #{END_REQUEST_DATE}
+		</if>
+		<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''">
+			AND T1.CD_ADD_STATE = #{CD_ADD_STATE}
+		</if>
+		<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+			AND T1.CD_CHNG_STATE = #{CD_CHNG_STATE}
+		</if>
+		<if test="START_FINAL_APL_DATE != null and START_FINAL_APL_DATE != ''">
+			AND DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d') >= #{START_FINAL_APL_DATE}
+		</if>
+		<if test="END_FINAL_APL_DATE != null and END_FINAL_APL_DATE != ''">
+			AND DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d') <![CDATA[<=]]> #{END_FINAL_APL_DATE}
+		</if>
+		ORDER BY T1.REQUEST_DATE DESC
+	</sql>
+
+	<select id="getBusinessPlanCount" parameterType="map" resultType="int">
+		SELECT COUNT(T2.NO) FROM (<include refid="getBusinessPlanRefineQuery"/>) T2
+	</select>
+	
+	<select id="getBusinessPlanList" parameterType="map" resultType="map">
+		<include refid="getBusinessPlanRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX != ''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+	
+	<select id="getBusinessPlanDetail" parameterType="map" resultType="map">
+		SELECT 
+			T1.PLAN_ID
+			, T1.AGC_ID
+			, T1.PLAN_TITLE
+			, T1.NATIONAL_YN
+			, T1.NEW_YN
+			, T1.CAREER_YN
+			, T1.LICENSE_YN
+			, T1.ADVANCE_YN
+			, IF(T1.NATIONAL_COST > 0, T1.NATIONAL_COST, '') AS NATIONAL_COST
+			, IF(T1.NEW_COST > 0, T1.NEW_COST, '') AS NEW_COST
+			, IF(T1.CAREER_COST > 0, T1.CAREER_COST, '') AS CAREER_COST
+			, IF(T1.LICENSE_COST > 0, T1.LICENSE_COST, '') AS LICENSE_COST
+			, IF(T1.ADVANCE_COST > 0, T1.ADVANCE_COST, '') AS ADVANCE_COST
+			, T1.PERSONNEL
+			, T1.REQUEST_ID
+			, T1.REQUEST_DATE
+			, T1.APPLY_ID
+			, T1.APPLY_DATE
+			, T1.FINAL_APL_ID
+			, T1.FINAL_APL_DATE
+			, T1.CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, T1.CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, IFNULL(T1.CD_CHNG_STATE, '') AS CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, T1.CD_CHNG_STATE), '') AS CD_CHNG_STATE_NAME
+			, T1.PLAN_NOTE
+			, T2.AGC_NAME
+			, T2.AGC_SERIAL
+			, T2.AGC_CORP
+			, T2.AGC_CORP_SERIAL
+			, T2.AGC_ADDRESS
+			, T2.AGC_ZIP
+			, T2.AGC_CORP_BOSS_NAME
+			, T2.AGC_CORP_BOSS_TEL
+			, T2.AGC_BOSS_NAME
+			, T2.AGC_BOSS_TEL
+		FROM MAS_BUSINESS_PLAN T1
+		LEFT JOIN MAS_AGENCY T2 ON T1.AGC_ID = T2.AGC_ID
+		WHERE T1.PLAN_ID = #{PLAN_ID}
+	</select>
+	
+	<insert id="addBusinessPlan" parameterType="map">
+		<![CDATA[
+		INSERT INTO MAS_BUSINESS_PLAN (
+			AGC_ID
+			, PLAN_TITLE
+			, NATIONAL_YN
+			, NEW_YN
+			, CAREER_YN
+			, LICENSE_YN
+			, ADVANCE_YN
+			, NATIONAL_COST
+			, NEW_COST
+			, CAREER_COST
+			, LICENSE_COST
+			, ADVANCE_COST
+			, PERSONNEL
+			, REQUEST_ID
+			, REQUEST_DATE
+			, CD_ADD_STATE
+			, PLAN_NOTE
+		) VALUES(
+			#{AGC_ID}
+			, #{PLAN_TITLE}
+			, #{NATIONAL_YN}
+			, #{NEW_YN}
+			, #{CAREER_YN}
+			, #{LICENSE_YN}
+			, #{ADVANCE_YN}
+			, IFNULL(IF(#{NATIONAL_COST} <> '', #{NATIONAL_COST}, 0), 0)
+			, IFNULL(IF(#{NEW_COST} <> '', #{NEW_COST}, 0), 0)
+			, IFNULL(IF(#{CAREER_COST} <> '', #{CAREER_COST}, 0), 0)
+			, IFNULL(IF(#{LICENSE_COST} <> '', #{LICENSE_COST}, 0), 0)
+			, IFNULL(IF(#{ADVANCE_COST} <> '', #{ADVANCE_COST}, 0), 0)
+			, #{PERSONNEL}
+			, #{REQUEST_ID}
+			, NOW()
+			, #{CD_ADD_STATE}
+			, #{PLAN_NOTE}
+		)
+		]]>
+		<selectKey resultType="int" keyProperty="PLAN_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setBusinessPlan" parameterType="map">
+		UPDATE MAS_BUSINESS_PLAN SET 
+			PLAN_TITLE = #{PLAN_TITLE}
+			, NATIONAL_YN = #{NATIONAL_YN}
+			, NEW_YN = #{NEW_YN}
+			, CAREER_YN = #{CAREER_YN}
+			, LICENSE_YN = #{LICENSE_YN}
+			, ADVANCE_YN = #{ADVANCE_YN}
+			, NATIONAL_COST = IFNULL(IF(#{NATIONAL_COST} <![CDATA[<>]]> '', #{NATIONAL_COST}, 0), 0)
+			, NEW_COST = IFNULL(IF(#{NEW_COST} <![CDATA[<>]]> '', #{NEW_COST}, 0), 0)
+			, CAREER_COST = IFNULL(IF(#{CAREER_COST} <![CDATA[<>]]> '', #{CAREER_COST}, 0), 0)
+			, LICENSE_COST = IFNULL(IF(#{LICENSE_COST} <![CDATA[<>]]> '', #{LICENSE_COST}, 0), 0)
+			, ADVANCE_COST = IFNULL(IF(#{ADVANCE_COST} <![CDATA[<>]]> '', #{ADVANCE_COST}, 0), 0)
+			, PERSONNEL = #{PERSONNEL}
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+			<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+				, CD_CHNG_STATE = #{CD_CHNG_STATE}
+			</if>
+			, PLAN_NOTE = #{PLAN_NOTE} 
+		WHERE 
+			PLAN_ID = #{PLAN_ID}
+	</update>
+	
+	<delete id="removePlanSagency" parameterType="map">
+		DELETE FROM MAPPER_PLAN_SAGENCY
+		WHERE PLAN_ID = #{PLAN_ID}
+		<if test="sagcIds != null and sagcIds.size() != 0">
+			AND SAGC_ID NOT IN 
+			<foreach collection="sagcIds" item="SAGC_ID"  open="(" close=")" separator=",">
+	            #{SAGC_ID}
+	        </foreach>
+		</if>
+	</delete>
+	
+	<select id="getPlanSagencyCount" parameterType="map" resultType="int">
+		SELECT COUNT(*) FROM MAPPER_PLAN_SAGENCY WHERE PLAN_ID = #{PLAN_ID} AND SAGC_ID = #{SAGC_ID}
+	</select>
+	
+	<insert id="addPlanSagency" parameterType="map">
+		INSERT INTO MAPPER_PLAN_SAGENCY (PLAN_ID, SAGC_ID)
+		VALUES (#{PLAN_ID}, #{SAGC_ID})
+	</insert>
+	
+	<delete id="removePlanSagent" parameterType="map">
+		DELETE FROM MAPPER_PLAN_SAGENT
+		WHERE PLAN_ID = #{PLAN_ID}
+		<if test="sagtIds != null and sagtIds.size() != 0">
+			AND SAGT_ID NOT IN 
+			<foreach collection="sagtIds" item="SAGT_ID"  open="(" close=")" separator=",">
+	            #{SAGT_ID}
+	        </foreach>
+		</if>
+	</delete>
+	
+	<select id="getPlanSagentCount" parameterType="map" resultType="int">
+		SELECT COUNT(*) FROM MAPPER_PLAN_SAGENT WHERE PLAN_ID = #{PLAN_ID} AND SAGT_ID = #{SAGT_ID}
+	</select>
+	
+	<insert id="addPlanSagent" parameterType="map">
+		INSERT INTO MAPPER_PLAN_SAGENT (PLAN_ID, SAGT_ID)
+		VALUES (#{PLAN_ID}, #{SAGT_ID})
+	</insert>
+	
+	<delete id="removePlanAgent" parameterType="map">
+		DELETE FROM MAPPER_PLAN_AGENT
+		WHERE PLAN_ID = #{PLAN_ID}
+		<if test="agtIds != null and agtIds.size() != 0">
+			AND AGT_ID NOT IN 
+			<foreach collection="agtIds" item="AGT_ID"  open="(" close=")" separator=",">
+	            #{AGT_ID}
+	        </foreach>
+		</if>
+	</delete>
+	
+	<select id="getPlanAgentCount" parameterType="map" resultType="int">
+		SELECT COUNT(*) FROM MAPPER_PLAN_AGENT WHERE PLAN_ID = #{PLAN_ID} AND AGT_ID = #{AGT_ID}
+	</select>
+	
+	<insert id="addPlanAgent" parameterType="map">
+		INSERT INTO MAPPER_PLAN_AGENT (PLAN_ID, AGT_ID)
+		VALUES (#{PLAN_ID}, #{AGT_ID})
+	</insert>
+	
+	<delete id="removePlanClass" parameterType="map">
+		DELETE FROM MAPPER_PLAN_CLASS
+		WHERE PLAN_ID = #{PLAN_ID}
+		<if test="planClassList != null and planClassList.size() != 0">
+			AND MAPPER_ID NOT IN 
+			<foreach collection="planClassList" item="obj"  open="(" close=")" separator=",">
+	            #{obj.MAPPER_ID}
+	        </foreach>
+		</if>
+	</delete>
+	
+	<select id="getPlanClassMapperId" parameterType="map" resultType="String">
+		SELECT MAPPER_ID FROM MAPPER_PLAN_CLASS 
+		WHERE PLAN_ID = #{PLAN_ID}
+			AND CD_CLS_LEV1 = #{CD_CLS_LEV1}
+			AND CD_CLS_LEV2 = #{CD_CLS_LEV2}
+	</select>
+	
+	<insert id="addPlanClass" parameterType="map">
+		INSERT INTO MAPPER_PLAN_CLASS (PLAN_ID, CD_CLS_LEV1, CD_CLS_LEV2)
+		VALUES (#{PLAN_ID}, #{CD_CLS_LEV1}, #{CD_CLS_LEV2})
+		<selectKey resultType="int" keyProperty="MAPPER_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<delete id="removePlanClassAgent" parameterType="map">
+		DELETE FROM MAPPER_PLAN_CLASS_AGENT WHERE PARENT_ID = #{PARENT_ID} AND AGT_TYPE = #{AGT_TYPE}
+		<if test="agts != null and agts.size() != 0">
+			AND AGT_ID NOT IN 
+			<foreach collection="agts" item="AGT_ID"  open="(" close=")" separator=",">
+	            #{AGT_ID}
+	        </foreach>
+		</if>
+	</delete>
+	
+	<select id="getPlanClassAgentCount" parameterType="map" resultType="int">
+		SELECT COUNT(*) FROM MAPPER_PLAN_CLASS_AGENT WHERE PARENT_ID = #{PARENT_ID} AND AGT_ID = #{AGT_ID} AND AGT_TYPE = #{AGT_TYPE}
+	</select>
+	
+	<insert id="addPlanClassAgent" parameterType="map">
+		INSERT INTO MAPPER_PLAN_CLASS_AGENT (PARENT_ID, AGT_ID, AGT_TYPE)
+		VALUES (#{PARENT_ID}, #{AGT_ID}, #{AGT_TYPE})
+	</insert>
+	
+	<select id="getPlanSagencyList" parameterType="map" resultType="map">
+		SELECT 
+			T1.MAPPER_ID
+			, T1.PLAN_ID
+			, T1.SAGC_ID 
+			, T2.CD_FACILITY_LEV1
+			, GET_CODE_MIDDLE_NAME(6, T2.CD_FACILITY_LEV1) AS CD_FACILITY_LEV1_NAME
+			, T2.CD_FACILITY_LEV2
+			, GET_CODE_BOTTOM_NAME(6, T2.CD_FACILITY_LEV1, T2.CD_FACILITY_LEV2) AS CD_FACILITY_LEV2_NAME
+			, T2.SAGC_NAME
+			, T2.SAGC_BOSS_TEL
+		FROM MAPPER_PLAN_SAGENCY T1
+		LEFT JOIN MAS_SUB_AGENCY T2 ON T1.SAGC_ID = T2.SAGC_ID
+		WHERE T1.PLAN_ID = #{PLAN_ID}
+	</select>
+	
+	<select id="getPlanSagentList" parameterType="map" resultType="map">
+		SELECT 
+			T1.MAPPER_ID
+			, T1.PLAN_ID
+			, T1.SAGT_ID
+			, T3.SAGC_NAME
+			, T2.CD_SAGT_TYPE
+			, GET_CODE_BOTTOM_NAME(7, 1, T2.CD_SAGT_TYPE) AS CD_SAGT_TYPE_NAME
+			, T2.SAGT_NAME
+		FROM MAPPER_PLAN_SAGENT T1 
+		LEFT JOIN MAS_SUB_AGENT T2 ON T1.SAGT_ID = T2.SAGT_ID
+		LEFT JOIN MAS_SUB_AGENCY T3 ON T2.SAGC_ID = T3.SAGC_ID
+		WHERE T1.PLAN_ID = #{PLAN_ID}
+	</select>
+	
+	<select id="getPlanAgentList" parameterType="map" resultType="map">
+		SELECT 
+			T1.MAPPER_ID
+			, T1.PLAN_ID
+			, T1.AGT_ID 
+			, T2.CD_AGT_TYPE
+			, GET_CODE_BOTTOM_NAME(3, 1, T2.CD_AGT_TYPE) AS CD_AGT_TYPE_NAME
+			, T2.AGT_NAME
+			, T2.AGT_TEL
+		FROM MAPPER_PLAN_AGENT T1
+		LEFT JOIN MAS_AGENT T2 ON T1.AGT_ID = T2.AGT_ID
+		WHERE T1.PLAN_ID = #{PLAN_ID}
+	</select>
+	
+	<resultMap id="planClassMap" type="map">
+		<id property="MAPPER_ID" column="MAPPER_ID"/>
+		<result property="PLAN_ID" column="PLAN_ID"/>
+		<result property="CD_CLS_LEV1" column="CD_CLS_LEV1"/>
+		<result property="CD_CLS_LEV2" column="CD_CLS_LEV2"/>
+		
+		<collection property="planClassAgentList" column="{PARENT_ID=MAPPER_ID}" javaType="List" ofType="Map" select="getPlanClassAgentList"/>
+	</resultMap>
+	
+	<select id="getPlanClassList" parameterType="map" resultMap="planClassMap">
+		SELECT 
+			T1.MAPPER_ID
+			, T1.PLAN_ID
+			, T1.CD_CLS_LEV1
+			, GET_CODE_MIDDLE_NAME(4, T1.CD_CLS_LEV1) AS CD_CLS_LEV1_NAME
+			, T1.CD_CLS_LEV2 
+			, GET_CODE_BOTTOM_NAME(4, T1.CD_CLS_LEV1, T1.CD_CLS_LEV2) AS CD_CLS_LEV2_NAME
+		FROM MAPPER_PLAN_CLASS T1 
+		WHERE PLAN_ID = #{PLAN_ID}
+	</select>
+	
+	<select id="getPlanClassAgentList" parameterType="map" resultType="map">
+		SELECT 
+			T1.MAPPER_ID
+			, T1.PARENT_ID
+			, T1.AGT_ID
+			, T1.AGT_TYPE 
+			, T2.AGT_NAME
+		FROM MAPPER_PLAN_CLASS_AGENT T1
+		LEFT JOIN MAS_AGENT T2 ON T1.AGT_ID = T2.AGT_ID
+		WHERE T1.PARENT_ID = #{PARENT_ID}
+	</select>
+	
+	<insert id="addHisBusinessPlanChange" parameterType="map">
+		<![CDATA[
+		INSERT INTO HIS_BUSINESS_PLAN_CHANGE (
+			PLAN_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{PLAN_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT 
+				CASE 
+					WHEN IFNULL(CD_CHNG_STATE, '') <> '' THEN CD_CHNG_STATE 
+					ELSE CD_ADD_STATE
+				END AS CD_CHNG_STATE
+				FROM MAS_BUSINESS_PLAN WHERE PLAN_ID = #{PLAN_ID})
+		)
+		]]>
+	</insert>
+	
+	<select id="getHisBusinessPlanList" parameterType="map" resultType="map">
+		<![CDATA[
+		SELECT
+			CHNG_ID
+			, PLAN_ID
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, CASE WHEN IFNULL(JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.businessPlanDetail.CD_CHNG_STATE')), '') <> '' THEN GET_CODE_BOTTOM_NAME(2, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.businessPlanDetail.CD_CHNG_STATE')))
+				ELSE GET_CODE_BOTTOM_NAME(1, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.businessPlanDetail.CD_ADD_STATE')))
+			END AS CD_CHNG_STATE_NAME
+			, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.businessPlanDetail.PLAN_NOTE')) AS PLAN_NOTE
+		FROM HIS_BUSINESS_PLAN_CHANGE
+		WHERE PLAN_ID = #{PLAN_ID}
+		ORDER BY CHNG_DATE ASC
+		]]>
+	</select>
+	
+	<select id="getHisBusinessPlanDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, PLAN_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."businessPlanDetail"') AS businessPlanDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."planSagencyList"') AS planSagencyList
+			, JSON_EXTRACT(CHNG_JSON, '$."planSagentList"') AS planSagentList
+			, JSON_EXTRACT(CHNG_JSON, '$."planAgentList"') AS planAgentList
+			, JSON_EXTRACT(CHNG_JSON, '$."planClassList"') AS planClassList
+		FROM HIS_BUSINESS_PLAN_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+</mapper>

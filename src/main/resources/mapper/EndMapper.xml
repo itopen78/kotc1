@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.EndMapper">
+	
+	
+	<!--  수료보고 -->
+	<sql id="getEndClassRefineQuery">
+		/* getEndClassRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.CLASS_ID 
+			, T1.AGC_ID
+			, DATE_FORMAT(T1.WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+			, T1.WRITED_ID
+			, IFNULL(DATE_FORMAT(T1.CHNG_DATE, '%Y-%m-%d'), '') AS CHNG_DATE
+			, T1.CHNG_ID
+			, T1.CLASS_TITLE
+			, DATE_FORMAT(T1.END_DATE, '%Y-%m-%d') AS END_DATE
+			, T1.STUDENT_TOTAL_COUNT
+			, T1.CLASS_NOTE
+			, T1.CD_ADD_STATE
+			, CASE
+				WHEN T1.CD_ADD_STATE = 1 THEN '등록'
+				WHEN T1.CD_ADD_STATE = 2 THEN '변경'
+				WHEN T1.CD_ADD_STATE = 3 THEN '삭제'
+				WHEN T1.CD_ADD_STATE = 4 THEN '임시저장'
+				ELSE ''
+			  END AS CD_ADD_STATE_NAME 
+			, GET_USER_NAME(CHNG_ID) AS USER_NAME
+			, T2.AGC_NAME 
+		FROM END_CLASS T1
+		LEFT JOIN MAS_AGENCY T2 ON T1.AGC_ID = T2.AGC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		<include refid="conditionEndClass" />
+		ORDER BY T1.WRITED_DATE DESC
+	</sql>
+	
+	<select id="getEndClassCount" parameterType="map" resultType="int">
+		/* getEndClassCount */
+		SELECT COUNT(T2.NO) FROM (<include refid="getEndClassRefineQuery"/>) T2		
+		WHERE 1=1
+		AND CD_ADD_STATE != '3'
+	</select>
+	
+	<select id="getEndClassList" parameterType="map" resultType="map">
+		/* getEndClassList */
+		<include refid="getEndClassRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX != ''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+	
+    <sql id="conditionEndClass">
+    		/* conditionLogic */
+
+		<if test="AGC_NAME != null and AGC_NAME != ''"> 
+			AND T2.AGC_NAME LIKE CONCAT('%', #{AGC_NAME}, '%') 
+		</if>
+		<if test="S_WRITED_DATE != null and S_WRITED_DATE != ''">
+			<![CDATA[	
+			AND date_format(T1.WRITED_DATE, '%Y-%m-%d')  >= #{S_WRITED_DATE} 					
+			]]>
+		</if>
+		<if test="E_WRITED_DATE != null and E_WRITED_DATE != ''">
+			<![CDATA[									
+			AND date_format(T1.WRITED_DATE, '%Y-%m-%d')  <= #{E_WRITED_DATE} 			
+			]]>
+		</if>		
+		<if test="CLASS_TITLE != null and CLASS_TITLE != ''"> 
+			AND T1.CLASS_TITLE LIKE CONCAT('%', #{CLASS_TITLE}, '%') 
+		</if>
+		<if test="S_CHNG_DATE != null and S_CHNG_DATE != ''">
+			<![CDATA[	
+			AND date_format(T1.CHNG_DATE, '%Y-%m-%d')  >= #{S_CHNG_DATE} 					
+			]]>
+		</if>
+		<if test="E_CHNG_DATE != null and E_CHNG_DATE != ''">
+			<![CDATA[									
+			AND date_format(T1.CHNG_DATE, '%Y-%m-%d')  <= #{E_CHNG_DATE} 			
+			]]>
+		</if>		
+		
+    </sql>
+    
+	<select id="getEndClassDetail" parameterType="map" resultType="map">
+		SELECT
+			 *
+		FROM END_CLASS
+		WHERE CLASS_ID = #{CLASS_ID}
+	</select>
+	
+	<insert id="addEndClass" parameterType="map" useGeneratedKeys="true" keyProperty="CLASS_ID">
+		INSERT INTO END_CLASS (
+			AGC_ID
+			, WRITED_DATE
+			, WRITED_ID
+			, CHNG_DATE
+			, CHNG_ID
+			, CLASS_TITLE
+			, END_DATE
+			, STUDENT_TOTAL_COUNT
+			, CLASS_NOTE
+			, CD_ADD_STATE
+		) VALUES (
+			 #{AGC_ID}
+			, NOW()
+			, #{ACC_ID}
+			, NOW()
+			, #{ACC_ID}
+			, #{CLASS_TITLE}
+			, NOW()
+			, #{STUDENT_TOTAL_COUNT}
+			, #{CLASS_NOTE}
+			, #{CD_ADD_STATE}
+		)
+		
+		<selectKey resultType="int" keyProperty="CLASS_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+		
+	</insert>
+	
+	<update id="setEndClass" parameterType="map">
+		UPDATE END_CLASS SET
+			CHNG_DATE  = NOW()
+			, CHNG_ID = #{SESSION_ACC_ID}
+		<if test="CLASS_TITLE != null and CLASS_TITLE != ''"> 
+			, CLASS_TITLE = #{CLASS_TITLE}
+		</if>	
+		<if test="STUDENT_TOTAL_COUNT != null and STUDENT_TOTAL_COUNT != ''"> 
+			, STUDENT_TOTAL_COUNT = #{STUDENT_TOTAL_COUNT}
+		</if>		
+		<if test="END_DATE != null and END_DATE != ''"> 
+			, END_DATE = NOW()
+		</if>
+		<if test="CLASS_NOTE != null and CLASS_NOTE != ''"> 
+			, CLASS_NOTE = #{CLASS_NOTE}
+		</if>
+		<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''"> 
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+		</if>
+		WHERE 
+			CLASS_ID = #{CLASS_ID}		
+	</update>
+	
+	<insert id="addHisEndClassChange" parameterType="map">
+		INSERT INTO HIS_END_CLASS_CHANGE (
+			CLASS_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{CLASS_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT CD_ADD_STATE FROM END_CLASS WHERE CLASS_ID = #{CLASS_ID})
+		)
+	</insert>
+	
+	<select id="getHisEndClassList" parameterType="map" resultType="map">
+		/* getHisEndClassList */
+		SELECT 
+		@rownum := @rownum+1 AS NO
+		, hecc.CHNG_ID
+		, hecc.CLASS_ID
+		, DATE_FORMAT(hecc.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, hecc.CHNG_JSON
+		, CASE 
+			WHEN hecc.CD_CHNG_STATE=1 THEN '등록'
+			WHEN hecc.CD_CHNG_STATE=2 THEN '변경'
+			WHEN hecc.CD_CHNG_STATE=3 THEN '삭제'
+		    ELSE ''
+		  END AS CD_CHNG_STATE		
+		, json_value(CHNG_JSON,'$.endClassDetail.CLASS_NOTE') AS CLASS_NOTE
+		FROM HIS_END_CLASS_CHANGE hecc
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND hecc.CLASS_ID = #{CLASS_ID}
+		ORDER BY hecc.CHNG_ID DESC
+	</select>
+	
+	<select id="getHisEndClassDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, CLASS_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."endClassDetail"') AS endClassDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."studentList"') AS studentList
+		FROM HIS_END_CLASS_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+	
+	
+	<!-- student -->
+	
+	<sql id="getStudentRefineQuery">
+		/* getStudentRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			,  
+			<include refid="mst" />
+			<if test="CLASS_ID != null and CLASS_ID != ''">
+			, IFNULL(mst.COMPLETE_REPORT_ID, '') AS CLASS_ID
+			</if> 
+			<if test="CLASS_ID == null or CLASS_ID == ''">
+			, '' AS CLASS_ID
+			</if> 
+		FROM MAS_STUDENT mst
+				  	
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND mst.AGC_ID = #{AGC_ID}
+		<include refid="conditionStudent" />
+	</sql>
+	
+	<select id="getStudentList" parameterType="map" resultType="map">
+		/* getStudentList */
+		<include refid="getStudentRefineQuery"/>
+	</select>
+	
+	<sql id="conditionStudent">
+    		/* conditionStudent */
+
+		<if test="NO != null and NO != ''">
+			AND mst.NO = #{NO}
+		</if>			
+		<if test="CD_CLASS_TYPE != null and CD_CLASS_TYPE != ''">
+			AND mst.CD_CLASS_TYPE = #{CD_CLASS_TYPE}
+		</if>				
+		<if test="STU_NAME != null and STU_NAME != ''">
+			AND mst.STU_NAME LIKE CONCAT('%', #{STU_NAME}, '%') 
+		</if>			
+		<if test="STU_ID_NUMBER != null and STU_ID_NUMBER != ''">
+			AND mst.STU_ID_NUMBER LIKE CONCAT('%', #{STU_ID_NUMBER}, '%') 
+		</if>			
+		<if test="STU_TEL != null and STU_TEL != ''">
+			AND mst.STU_TEL LIKE CONCAT('%', #{STU_TEL}, '%') 
+		</if>
+
+		<if test="COMPLETE_REPORT_ID != null and COMPLETE_REPORT_ID != ''">
+			AND mst.COMPLETE_REPORT_ID = ${CLASS_ID}  
+		</if>	
+    </sql>
+	
+	
+	<sql id="mst">
+		mst.STU_ID
+		,mst.AGC_ID
+		,mst.CD_CLASS_TYPE
+		,GET_CODE_BOTTOM_NAME('8', '1', mst.CD_CLASS_TYPE) AS CD_CLASS_TYPE_NAME
+		,mst.LICENSE_SERIAL
+		,mst.STU_NAME
+		,mst.STU_ID_NUMBER
+		,mst.STU_TEL
+		,mst.STU_ZIP
+		,mst.STU_ADDRESS
+		,mst.L_LECTURE_ID
+		,mst.P_LECTURE_ID
+		,mst.S_LECTURE_ID
+		,mst.COMPLETE_REPORT_ID
+		,mst.ADD_DATE
+		,mst.CD_ADD_STATE
+		,mst.CHNG_DATE
+		,mst.COMPLETE_DATE
+		,mst.TEST_NAME
+		,mst.TEST_DATE
+		,mst.PASS_DATE
+		,mst.PASS_NUMBER
+		,mst.DISQUALIFICATION_YN
+		,mst.DISQUALIFICATION_DATE
+		,mst.L_TIME
+		,mst.P_TIME1
+		,mst.P_TIME2
+		,mst.S_TIME
+		,IFNULL(mst.STU_NOTE , '-') AS STU_NOTE
+	</sql>
+		
+	<delete id="removeStudent" parameterType="map">
+		DELETE FROM  MAPPER_END_STUDENT
+		WHERE CLASS_ID = #{CLASS_ID}
+		<if test="stuIds != null and stuIds.size() != 0">
+		AND STU_ID NOT IN 
+			<foreach collection="stuIds" item="STU_ID" open="(" close=")" separator=",">
+				#{STU_ID}
+			</foreach>	
+		</if>    		
+	</delete>
+	
+	<insert id="addStudent" parameterType="map">
+		<if test="STU_ID != null and STU_ID != ''">
+		INSERT INTO MAPPER_END_STUDENT (CLASS_ID, STU_ID)
+		VALUES (#{CLASS_ID}, #{STU_ID}) 
+		</if>   						
+	</insert>
+	
+	<select id="getStudentCount" parameterType="map" resultType="int">
+		SELECT COUNT(*) FROM MAPPER_END_STUDENT WHERE CLASS_ID = #{CLASS_ID} AND STU_ID = #{STU_ID} 
+	</select>
+	
+	<update id="setStudent" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			COMPLETE_REPORT_ID = #{CLASS_ID}
+			, COMPLETE_DATE = NOW()
+			<if test="L_TIME != null and L_TIME != ''">
+			, L_TIME = #{L_TIME}
+			</if>
+			<if test="P_TIME1 != null and P_TIME1 != ''">
+			, P_TIME1 = #{P_TIME1}
+			</if>
+			<if test="P_TIME2 != null and P_TIME2 != ''">
+			, P_TIME2 = #{P_TIME2}
+			</if>
+			<if test="S_TIME != null and S_TIME != ''">
+			, S_TIME = #{S_TIME}
+			</if>
+		WHERE STU_ID = #{STU_ID}
+	</update>
+	
+	<update id="removeCompleteId" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			COMPLETE_REPORT_ID = NULL
+			, CHNG_DATE = NOW()
+		WHERE
+			COMPLETE_REPORT_ID = ${CLASS_ID}
+		<if test="STU_ID != null and STU_ID != ''">
+		AND STU_ID NOT IN 
+			(
+			SELECT
+				STU_ID
+			FROM 
+				MAS_STUDENT
+			WHERE 1=1			
+				AND STU_ID IN ( ${STU_ID} ) 
+				AND COMPLETE_REPORT_ID = ${CLASS_ID}
+			)
+		</if>
+	</update>
+	
+	<update id="addCompleteId" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			COMPLETE_REPORT_ID = ${CLASS_ID}
+			, CHNG_DATE = NOW()
+		WHERE 
+			COMPLETE_REPORT_ID IS NULL 
+		<if test="STU_ID != null and STU_ID != ''">
+		AND STU_ID IN 
+			(
+			SELECT
+				STU_ID
+			FROM 
+				MAS_STUDENT
+			WHERE 1=1			
+				AND STU_ID IN ( ${STU_ID} ) 
+				AND COMPLETE_REPORT_ID IS NULL
+			)	
+		</if>
+	</update>
+
+</mapper>
