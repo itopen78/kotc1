@@ -1,0 +1,1580 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.EduMapper">
+	
+	<sql id="getAgencyRefineQuery">
+		<![CDATA[
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.AGC_ID
+			, T1.AGC_SERIAL
+			, T1.AGC_NAME
+			, T1.AGC_BOSS_NAME
+			, T1.AGC_BOSS_TEL
+			, IFNULL(T1.AGC_CORP, '') AS AGC_CORP
+			, IFNULL(T1.AGC_CORP_SERIAL, '') AS AGC_CORP_SERIAL
+			, IFNULL(T1.AGC_CORP_BOSS_NAME, '') AS AGC_CORP_BOSS_NAME
+			, IFNULL(T1.AGC_CORP_BOSS_TEL, '') AS AGC_CORP_BOSS_TEL
+			, T1.AGC_ZIP
+			, T1.AGC_ADDRESS
+			, T1.ACC_ID
+			, IFNULL(T2.USER_NAME, '') AS USER_NAME
+			, T1.CD_AREA
+			, IFNULL(GET_CODE_BOTTOM_NAME(5, 1, T1.CD_AREA), '') AS CD_AREA_NAME
+			, T1.ADD_DATE
+			, T1.CHNG_DATE
+			, T1.USE_YN
+			, T1.CD_ADD_STATE
+			, T1.AGC_NOTE
+		FROM MAS_AGENCY T1
+		LEFT JOIN MAS_ACCOUNT T2 ON T1.ACC_ID = T2.ACC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE T1.CD_ADD_STATE <> 3 -- CD_ADD_STATE [1:등록, 2:변경, 3:삭제]
+		]]>
+		<if test="AGC_NAME != null and AGC_NAME != ''">
+			AND T1.AGC_NAME LIKE CONCAT('%', #{AGC_NAME}, '%')
+		</if>
+		<if test="AGC_SERIAL != null and AGC_SERIAL != ''">
+			AND T1.AGC_SERIAL LIKE CONCAT('%', #{AGC_SERIAL}, '%')
+		</if>
+		<if test="CD_AREA != null and CD_AREA != ''">
+			AND T1.CD_AREA = #{CD_AREA}
+		</if>
+		<if test="USER_NAME != null and USER_NAME != ''">
+			AND T2.USER_NAME LIKE CONCAT('%', #{USER_NAME}, '%')
+		</if>
+		<if test="AGC_CORP_BOSS_NAME != null and AGC_CORP_BOSS_NAME != ''">
+			AND T1.AGC_CORP_BOSS_NAME LIKE CONCAT('%', #{AGC_CORP_BOSS_NAME}, '%')
+		</if>
+		<if test="AGC_CORP_BOSS_TEL != null and AGC_CORP_BOSS_TEL != ''">
+			AND T1.AGC_CORP_BOSS_TEL LIKE CONCAT('%', #{AGC_CORP_BOSS_TEL}, '%')
+		</if>
+		<if test="USE_YN != null and USE_YN != ''">
+			AND T1.USE_YN = #{USE_YN}
+		</if>
+		ORDER BY ADD_DATE DESC
+	</sql>
+	
+	<select id="getAgencyCount" parameterType="map" resultType="int">
+		SELECT COUNT(T3.NO) FROM (<include refid="getAgencyRefineQuery"/>) T3
+	</select>
+	
+	<select id="getAgencyList" parameterType="map" resultType="map">
+		<include refid="getAgencyRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX !=''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+	
+	<update id="removeAgency" parameterType="map">
+		UPDATE MAS_AGENCY SET
+			CD_ADD_STATE = 3
+		WHERE AGC_ID = #{AGC_ID}
+	</update>
+	
+	<update id="setAgency" parameterType="map">
+		UPDATE MAS_AGENCY SET 
+			AGC_SERIAL = #{AGC_SERIAL}
+			, AGC_NAME = #{AGC_NAME}
+			, AGC_BOSS_NAME = #{AGC_BOSS_NAME}
+			, AGC_BOSS_TEL = #{AGC_BOSS_TEL}
+			, AGC_CORP = #{AGC_CORP}
+			, AGC_CORP_SERIAL = #{AGC_CORP_SERIAL}
+			, AGC_CORP_BOSS_NAME = #{AGC_CORP_BOSS_NAME}
+			, AGC_CORP_BOSS_TEL = #{AGC_CORP_BOSS_TEL}
+			, AGC_ZIP = #{AGC_ZIP}
+			, AGC_ADDRESS = #{AGC_ADDRESS}
+			, ACC_ID = #{SESSION_ACC_ID}
+			, CD_AREA = #{CD_AREA}
+			, CHNG_DATE = NOW()
+			, USE_YN = #{USE_YN}
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+			, AGC_NOTE = #{AGC_NOTE} 
+		WHERE 
+			AGC_ID = #{AGC_ID}
+	</update>
+	
+	<insert id="addAgency" parameterType="map">
+		INSERT INTO MAS_AGENCY ( 
+			AGC_SERIAL
+			, AGC_NAME
+			, AGC_BOSS_NAME
+			, AGC_BOSS_TEL
+			, AGC_CORP
+			, AGC_CORP_SERIAL
+			, AGC_CORP_BOSS_NAME
+			, AGC_CORP_BOSS_TEL
+			, AGC_ZIP
+			, AGC_ADDRESS
+			, ACC_ID
+			, CD_AREA
+			, ADD_DATE
+			, CHNG_DATE
+			, USE_YN
+			, CD_ADD_STATE
+			, AGC_NOTE
+		) VALUES(
+			#{AGC_SERIAL}
+			, #{AGC_NAME}
+			, #{AGC_BOSS_NAME}
+			, #{AGC_BOSS_TEL}
+			, #{AGC_CORP}
+			, #{AGC_CORP_SERIAL}
+			, #{AGC_CORP_BOSS_NAME}
+			, #{AGC_CORP_BOSS_TEL}
+			, #{AGC_ZIP}
+			, #{AGC_ADDRESS}
+			, #{SESSION_ACC_ID}
+			, #{CD_AREA}
+			, NOW()
+			, NOW()
+			, #{USE_YN}
+			, #{CD_ADD_STATE}
+			, #{AGC_NOTE}
+		)
+		<selectKey resultType="int" keyProperty="AGC_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<select id="countAgencyByAgcSerial" parameterType="map" resultType="int">
+		SELECT COUNT(*) FROM MAS_AGENCY WHERE AGC_SERIAL = #{AGC_SERIAL}
+	</select>
+	
+	<select id="getAgencyDetail" parameterType="map" resultType="map">
+		SELECT
+			AGC_ID
+			, AGC_SERIAL
+			, AGC_NAME
+			, AGC_BOSS_NAME
+			, AGC_BOSS_TEL
+			, AGC_CORP
+			, AGC_CORP_SERIAL
+			, AGC_CORP_BOSS_NAME
+			, AGC_CORP_BOSS_TEL
+			, AGC_ZIP
+			, AGC_ADDRESS
+			, ACC_ID
+			, GET_USER_NAME(ACC_ID) AS USER_NAME
+			, CD_AREA
+			, GET_CODE_BOTTOM_NAME(5, 1, CD_AREA) AS CD_AREA_NAME
+			, DATE_FORMAT(ADD_DATE, '%Y-%m-%d %H:%i:%s') AS ADD_DATE
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d %H:%i:%s') AS CHNG_DATE
+			, USE_YN
+			, CD_ADD_STATE
+			, AGC_NOTE
+		FROM MAS_AGENCY
+		WHERE AGC_ID = #{AGC_ID}
+	</select>
+	
+	<update id="setAgencyAgcNote" parameterType="map">
+		UPDATE MAS_AGENCY SET
+			CHNG_DATE = NOW()
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+			, AGC_NOTE = #{AGC_NOTE}
+		WHERE
+			AGC_ID = #{AGC_ID}
+	</update>
+	
+	<insert id="addHisAgencyChange" parameterType="map">
+		INSERT INTO HIS_AGENCY_CHANGE (
+			AGC_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{AGC_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT CD_ADD_STATE FROM MAS_AGENCY WHERE AGC_ID = #{AGC_ID})
+		)
+	</insert>
+	
+	<select id="getAgencyWorkerList" parameterType="map" resultType="map">
+		SELECT 
+			* 
+		FROM MAS_AGENCY_WORKER
+		WHERE AGC_ID = #{AGC_ID}
+		ORDER BY WORKER_ID ASC
+	</select>
+	
+	<select id="getAgencyWorkerListByAgcId" parameterType="map" resultType="map">
+		SELECT 
+			WORKER_ID
+			, AGC_ID
+			, WORKER_RANK
+			, WORKER_NAME
+			, WORKER_TEL
+			, AGT_NOTE
+		FROM MAS_AGENCY_WORKER
+		WHERE AGC_ID = #{AGC_ID}
+	</select>
+	
+	<insert id="addAgencyWorker" parameterType="map">
+		INSERT INTO MAS_AGENCY_WORKER( 
+			AGC_ID
+			, WORKER_RANK
+			, WORKER_NAME
+			, WORKER_TEL
+			, AGT_NOTE 
+		) VALUES (
+			#{AGC_ID}
+			, #{WORKER_RANK}
+			, #{WORKER_NAME}
+			, #{WORKER_TEL}
+			, #{AGT_NOTE}
+		)
+		<selectKey resultType="int" keyProperty="WORKER_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<select id="getAgencyWorkerDetail" parameterType="map" resultType="map">
+		SELECT 
+			WORKER_ID
+			, AGC_ID
+			, WORKER_RANK
+			, WORKER_NAME
+			, WORKER_TEL
+			, AGT_NOTE
+		FROM MAS_AGENCY_WORKER
+		WHERE
+			WORKER_ID = #{WORKER_ID}
+	</select>
+	
+	<update id="setAgencyWorker" parameterType="map">
+		UPDATE MAS_AGENCY_WORKER SET
+			AGC_ID  = #{AGC_ID}
+			, WORKER_RANK = #{WORKER_RANK}
+			, WORKER_NAME = #{WORKER_NAME}
+			, WORKER_TEL = #{WORKER_TEL}
+			, AGT_NOTE = #{AGT_NOTE}
+		WHERE 
+			WORKER_ID = #{WORKER_ID}
+	</update>
+	
+	<delete id="removeAgencyWorker" parameterType="String">
+		DELETE FROM MAS_AGENCY_WORKER WHERE WORKER_ID = #{WORKER_ID}
+	</delete>
+	
+	<sql id="getAgentRefineQuery">
+		<![CDATA[
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.AGT_ID
+			, T1.AGC_ID
+			, T2.AGC_NAME
+			, T1.CD_AGT_TYPE
+			, GET_CODE_BOTTOM_NAME(3, 1, T1.CD_AGT_TYPE) AS CD_AGT_TYPE_NAME
+			, T1.AGT_NAME
+			, T1.AGT_BIRTHDAY
+			, T1.AGT_TEL
+			, T1.REQUEST_DATE
+			, T1.APPLY_DATE
+			, IFNULL(DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d'), '') AS FINAL_APL_DATE
+			, T1.CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, T1.CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, T1.CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, T1.CD_CHNG_STATE), '-') AS CD_CHNG_STATE_NAME
+			, T1.AGT_NOTE
+		FROM MAS_AGENT T1
+			LEFT JOIN MAS_AGENCY T2 ON T1.AGC_ID = T2.AGC_ID
+			, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		]]>
+		<if test="AGC_NAME != null and AGC_NAME != ''">
+			AND T2.AGC_NAME LIKE CONCAT('%', #{AGC_NAME}, '%')
+		</if>
+		<if test="CD_AGT_TYPE != null and CD_AGT_TYPE != ''">
+			AND T1.CD_AGT_TYPE = #{CD_AGT_TYPE}
+		</if>
+		<if test="AGT_NAME != null and AGT_NAME != ''">
+			AND T1.AGT_NAME LIKE CONCAT('%', #{AGT_NAME}, '%')
+		</if>
+		<if test="AGT_TEL != null and AGT_TEL != ''">
+			AND T1.AGT_TEL LIKE CONCAT('%', #{AGT_TEL}, '%')
+		</if>
+		<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''">
+			AND T1.CD_ADD_STATE = #{CD_ADD_STATE}
+		</if>
+		<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+			AND T1.CD_CHNG_STATE = #{CD_CHNG_STATE}
+		</if>
+		<if test="START_FINAL_APL_DATE != null and START_FINAL_APL_DATE != ''">
+			AND DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d') >= #{START_FINAL_APL_DATE}
+		</if>
+		<if test="END_FINAL_APL_DATE != null and END_FINAL_APL_DATE != ''">
+			AND DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d') <![CDATA[<=]]> #{END_FINAL_APL_DATE}
+		</if>
+		ORDER BY T1.AGT_ID DESC
+	</sql>
+	
+	<select id="getAgentCount" parameterType="map" resultType="int">
+		SELECT COUNT(T3.NO) FROM (<include refid="getAgentRefineQuery"/>) T3
+	</select>
+	
+	<select id="getAgentList" parameterType="map" resultType="map">
+		<include refid="getAgentRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX !=''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+	
+	<insert id="addAgent" parameterType="map">
+		INSERT INTO MAS_AGENT (
+			AGC_ID
+			, CD_AGT_TYPE
+			, AGT_NAME
+			, AGT_BIRTHDAY
+			, AGT_TEL
+			, REQUEST_DATE
+			, CD_ADD_STATE
+			, AGT_NOTE
+		) VALUES (
+			#{AGC_ID}
+			, #{CD_AGT_TYPE}
+			, #{AGT_NAME}
+			, STR_TO_DATE(#{AGT_BIRTHDAY}, '%Y-%m-%d')
+			, #{AGT_TEL}
+			, NOW()
+			, #{CD_ADD_STATE} <!-- 등록신청 -->
+			, #{AGT_NOTE}
+		)
+		<selectKey resultType="int" keyProperty="AGT_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setAgent" parameterType="map">
+		UPDATE MAS_AGENT SET 
+			CD_AGT_TYPE = #{CD_AGT_TYPE}
+			, AGT_NAME = #{AGT_NAME}
+			, AGT_BIRTHDAY = STR_TO_DATE(#{AGT_BIRTHDAY}, '%Y-%m-%d')
+			, AGT_TEL = #{AGT_TEL}
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+			<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+				, CD_CHNG_STATE = #{CD_CHNG_STATE}
+			</if>
+			, AGT_NOTE = #{AGT_NOTE}
+		WHERE 
+			AGT_ID = #{AGT_ID}
+	</update>
+	
+	<insert id="addAgentClass" parameterType="map">
+		INSERT INTO AGENT_CLASS (
+			AGT_ID
+			, CD_CLS_LEV1
+			, CD_CLS_LEV2
+		) VALUES (
+			#{AGT_ID}
+			, #{CD_CLS_LEV1}
+			, #{CD_CLS_LEV2}
+		)
+	</insert>
+	
+	<update id="setAgentClass" parameterType="map">
+		UPDATE AGENT_CLASS SET
+			AGT_ID = #{AGT_ID}
+			, CD_CLS_LEV1 = #{CD_CLS_LEV1}
+			, CD_CLS_LEV2 = #{CD_CLS_LEV2}
+		WHERE
+			CLS_ID = #{CLS_ID}
+	</update>
+	
+	<select id="getAgentClassList" parameterType="map" resultType="map">
+		SELECT 
+			T1.CLS_ID
+			, T1.AGT_ID
+			, T1.CD_CLS_LEV1
+			, GET_CODE_MIDDLE_NAME(4, T1.CD_CLS_LEV1) AS CD_CLS_LEV1_NAME
+			, T1.CD_CLS_LEV2
+			, GET_CODE_BOTTOM_NAME(4, T1.CD_CLS_LEV1, T1.CD_CLS_LEV2) AS CD_CLS_LEV2_NAME
+			, T2.AGC_ID
+			, T2.CD_AGT_TYPE
+			, GET_CODE_BOTTOM_NAME(3, 1, T2.CD_AGT_TYPE) AS CD_AGT_TYPE_NAME
+			, T2.AGT_NAME
+			, T2.AGT_BIRTHDAY
+			, T2.AGT_TEL
+			, T2.REQUEST_DATE
+			, T2.APPLY_DATE
+			, IFNULL(DATE_FORMAT(T2.FINAL_APL_DATE, '%Y-%m-%d'), '') AS FINAL_APL_DATE
+			, T2.CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, T2.CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, T2.CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, T2.CD_CHNG_STATE), '-') AS CD_CHNG_STATE_NAME
+			, T2.AGT_NOTE
+		FROM AGENT_CLASS T1
+		LEFT JOIN MAS_AGENT T2 ON T1.AGT_ID = T2.AGT_ID
+		WHERE 1=1
+		<if test="AGT_ID != null and AGT_ID != ''">
+			AND T1.AGT_ID = #{AGT_ID}
+		</if>
+		<if test="CD_CLS_LEV1 != null and CD_CLS_LEV1 != ''">
+			AND T1.CD_CLS_LEV1 = #{CD_CLS_LEV1}
+		</if>
+		<if test="CD_CLS_LEV2 != null and CD_CLS_LEV2 != ''">
+			AND T1.CD_CLS_LEV2 = #{CD_CLS_LEV2}
+		</if>
+		<if test="AGC_ID != null and AGC_ID != ''">
+			AND T2.AGC_ID = #{AGC_ID}
+		</if>
+		<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''">
+			AND T2.CD_ADD_STATE = #{CD_ADD_STATE}
+		</if>
+	</select>
+	
+	<delete id="removeAgentClass" parameterType="String">
+		DELETE FROM AGENT_CLASS WHERE CLS_ID = #{CLS_ID}
+	</delete>
+	
+	<select id="getAgentDetail" parameterType="map" resultType="map">
+		SELECT 
+			AGT_ID
+			, AGC_ID
+			, CD_AGT_TYPE
+			, GET_CODE_BOTTOM_NAME(3, 1, CD_AGT_TYPE) AS CD_AGT_TYPE_NAME
+			, AGT_NAME
+			, IFNULL(DATE_FORMAT(AGT_BIRTHDAY, '%Y-%m-%d'), '') AS AGT_BIRTHDAY
+			, AGT_TEL
+			, DATE_FORMAT(REQUEST_DATE, '%Y년 %m월 %d일') AS REQUEST_DATE
+			, IFNULL(DATE_FORMAT(APPLY_DATE, '%Y년 %m월 %d일'), '') AS APPLY_DATE
+			, IFNULL(DATE_FORMAT(FINAL_APL_DATE, '%Y년 %m월 %d일'), '') AS FINAL_APL_DATE
+			, CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, IFNULL(CD_CHNG_STATE, '') AS CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, CD_CHNG_STATE), '') AS CD_CHNG_STATE_NAME
+			, AGT_NOTE 
+		FROM MAS_AGENT WHERE AGT_ID = #{AGT_ID}
+	</select>
+	
+	<insert id="addHisAgentChange" parameterType="map">
+		<![CDATA[
+		INSERT INTO HIS_AGENT_CHANGE (
+			AGT_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{AGT_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT 
+				CASE 
+					WHEN IFNULL(CD_CHNG_STATE, '') <> '' THEN CD_CHNG_STATE 
+					ELSE CD_ADD_STATE
+				END AS CD_CHNG_STATE
+				FROM MAS_AGENT WHERE AGT_ID = #{AGT_ID})
+		)
+		]]>
+	</insert>
+	
+	<sql id="getSubAgencyRefineQuery">
+		<![CDATA[
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, SAGC_ID
+			, AGC_ID
+			, CD_FACILITY_LEV1
+			, GET_CODE_MIDDLE_NAME(6, CD_FACILITY_LEV1) AS CD_FACILITY_LEV1_NAME
+			, CD_FACILITY_LEV2
+			, GET_CODE_BOTTOM_NAME(6, CD_FACILITY_LEV1, CD_FACILITY_LEV2) AS CD_FACILITY_LEV2_NAME
+			, SAGC_NAME
+			, SAGC_ZIP
+			, SAGC_ADDRESS
+			, INSTALL_DATE
+			, SAGC_BOSS_NAME
+			, SAGC_BOSS_TEL
+			, CONTRACT_BEGIN_DATE
+			, CONTRACT_END_DATE
+			, REQUEST_DATE
+			, APPLY_DATE
+			, IFNULL(DATE_FORMAT(FINAL_APL_DATE, '%Y-%m-%d-'), '') AS FINAL_APL_DATE
+			, CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, CD_CHNG_STATE), '') AS CD_CHNG_STATE_NAME
+			, EVALUATION_RANK
+			, EVALUATION_YEAR
+			, MEMBER_TOTAL_COUNT
+			, MEMBER_CURRENT_COUNT
+			, STUDENT_TOTAL_COUNT
+			, STUDENT_DAILY_COUNT
+			, STUDENT_DAILY_COST
+			, SAGC_NOTE
+		FROM MAS_SUB_AGENCY
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		]]>
+		WHERE 1=1
+			<if test="AGC_ID != null and AGC_ID != ''">
+				AND AGC_ID = #{AGC_ID}
+			</if>
+			<if test="CD_FACILITY_LEV1 != null and CD_FACILITY_LEV1 != ''">
+				AND CD_FACILITY_LEV1 = #{CD_FACILITY_LEV1}
+			</if>
+			<if test="CD_FACILITY_LEV2 != null and CD_FACILITY_LEV2 != ''">
+				AND CD_FACILITY_LEV2 = #{CD_FACILITY_LEV2}
+			</if>
+			<if test="SAGC_BOSS_NAME != null and SAGC_BOSS_NAME != ''">
+				AND SAGC_BOSS_NAME LIKE CONCAT('%', #{SAGC_BOSS_NAME}, '%')
+			</if>
+			<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''">
+				AND CD_ADD_STATE = #{CD_ADD_STATE}
+			</if>
+			<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+				AND CD_CHNG_STATE = #{CD_CHNG_STATE}
+			</if>
+			<if test="START_FINAL_APL_DATE != null and START_FINAL_APL_DATE != ''">
+				AND DATE_FORMAT(FINAL_APL_DATE, '%Y-%m-%d') >= #{START_FINAL_APL_DATE}
+			</if>
+			<if test="END_FINAL_APL_DATE != null and END_FINAL_APL_DATE != ''">
+				AND DATE_FORMAT(FINAL_APL_DATE, '%Y-%m-%d') <![CDATA[<=]]> #{END_FINAL_APL_DATE}
+			</if>
+		ORDER BY REQUEST_DATE DESC
+	</sql>
+
+	<select id="getSubAgencyCount" parameterType="map" resultType="int">
+		SELECT COUNT(T2.NO) FROM (<include refid="getSubAgencyRefineQuery"/>) T2
+	</select>
+	
+	<select id="getSubAgencyList" parameterType="map" resultType="map">
+		<include refid="getSubAgencyRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX !=''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+	
+	<insert id="addSubAgency" parameterType="map">
+		INSERT INTO MAS_SUB_AGENCY ( 
+			AGC_ID
+			, CD_FACILITY_LEV1
+			, CD_FACILITY_LEV2
+			, SAGC_NAME
+			, SAGC_ZIP
+			, SAGC_ADDRESS
+			, INSTALL_DATE
+			, SAGC_BOSS_NAME
+			, SAGC_BOSS_TEL
+			, CONTRACT_BEGIN_DATE
+			, CONTRACT_END_DATE
+			, REQUEST_DATE
+			, CD_ADD_STATE
+			, EVALUATION_RANK
+			, EVALUATION_YEAR
+			, MEMBER_TOTAL_COUNT
+			, MEMBER_CURRENT_COUNT
+			, STUDENT_TOTAL_COUNT
+			, STUDENT_DAILY_COUNT
+			, STUDENT_DAILY_COST
+			, SAGC_NOTE
+		) VALUES(
+			#{AGC_ID}
+			, #{CD_FACILITY_LEV1}
+			, #{CD_FACILITY_LEV2}
+			, #{SAGC_NAME}
+			, #{SAGC_ZIP}
+			, #{SAGC_ADDRESS}
+			, STR_TO_DATE(#{INSTALL_DATE}, '%Y-%m-%d')
+			, #{SAGC_BOSS_NAME}
+			, #{SAGC_BOSS_TEL}
+			, STR_TO_DATE(#{CONTRACT_BEGIN_DATE}, '%Y-%m-%d')
+			, STR_TO_DATE(#{CONTRACT_END_DATE}, '%Y-%m-%d')
+			, NOW()
+			, #{CD_ADD_STATE}
+			, #{EVALUATION_RANK}
+			, #{EVALUATION_YEAR}
+			, #{MEMBER_TOTAL_COUNT}
+			, #{MEMBER_CURRENT_COUNT}
+			, #{STUDENT_TOTAL_COUNT}
+			, #{STUDENT_DAILY_COUNT}
+			, #{STUDENT_DAILY_COST}
+			, #{SAGC_NOTE}
+		)
+		<selectKey resultType="int" keyProperty="SAGC_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setSubAgency" parameterType="map">
+		UPDATE MAS_SUB_AGENCY SET 
+			CD_FACILITY_LEV1 = #{CD_FACILITY_LEV1}
+			, CD_FACILITY_LEV2 = #{CD_FACILITY_LEV2}
+			, SAGC_NAME = #{SAGC_NAME}
+			, SAGC_ZIP = #{SAGC_ZIP}
+			, SAGC_ADDRESS = #{SAGC_ADDRESS}
+			, INSTALL_DATE = STR_TO_DATE(#{INSTALL_DATE}, '%Y-%m-%d')
+			, SAGC_BOSS_NAME = #{SAGC_BOSS_NAME}
+			, SAGC_BOSS_TEL = #{SAGC_BOSS_TEL}
+			, CONTRACT_BEGIN_DATE = STR_TO_DATE(#{CONTRACT_BEGIN_DATE}, '%Y-%m-%d')
+			, CONTRACT_END_DATE = STR_TO_DATE(#{CONTRACT_END_DATE}, '%Y-%m-%d')
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+			<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+				, CD_CHNG_STATE = #{CD_CHNG_STATE}
+			</if>
+			, EVALUATION_RANK = #{EVALUATION_RANK}
+			, EVALUATION_YEAR = #{EVALUATION_YEAR}
+			, MEMBER_TOTAL_COUNT = #{MEMBER_TOTAL_COUNT}
+			, MEMBER_CURRENT_COUNT = #{MEMBER_CURRENT_COUNT}
+			, STUDENT_TOTAL_COUNT = #{STUDENT_TOTAL_COUNT}
+			, STUDENT_DAILY_COUNT = #{STUDENT_DAILY_COUNT}
+			, STUDENT_DAILY_COST = #{STUDENT_DAILY_COST}
+			, SAGC_NOTE = #{SAGC_NOTE}
+		WHERE 
+			SAGC_ID = #{SAGC_ID}
+	</update>
+	
+	<select id="getSubAgencyDetail" parameterType="map" resultType="map">
+		<![CDATA[
+		SELECT 
+			SAGC_ID
+			, AGC_ID
+			, CD_FACILITY_LEV1
+			, GET_CODE_MIDDLE_NAME(6, CD_FACILITY_LEV1) AS CD_FACILITY_LEV1_NAME
+			, CD_FACILITY_LEV2
+			, GET_CODE_BOTTOM_NAME(6, CD_FACILITY_LEV1, CD_FACILITY_LEV2) AS CD_FACILITY_LEV2_NAME
+			, SAGC_NAME
+			, SAGC_ZIP
+			, SAGC_ADDRESS
+			, INSTALL_DATE
+			, SAGC_BOSS_NAME
+			, SAGC_BOSS_TEL
+			, DATE_FORMAT(CONTRACT_BEGIN_DATE, '%Y-%m-%d') AS CONTRACT_BEGIN_DATE
+			, DATE_FORMAT(CONTRACT_END_DATE, '%Y-%m-%d') AS CONTRACT_END_DATE
+			, DATE_FORMAT(REQUEST_DATE, '%Y년 %m월 %d일') AS REQUEST_DATE
+			, IFNULL(DATE_FORMAT(APPLY_DATE, '%Y년 %m월 %d일'), '') AS APPLY_DATE
+			, IFNULL(DATE_FORMAT(FINAL_APL_DATE, '%Y년 %m월 %d일'), '') AS FINAL_APL_DATE
+			, CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, CD_CHNG_STATE), '') AS CD_CHNG_STATE_NAME
+			, EVALUATION_RANK
+			, EVALUATION_YEAR
+			, MEMBER_TOTAL_COUNT
+			, MEMBER_CURRENT_COUNT
+			, STUDENT_TOTAL_COUNT
+			, STUDENT_DAILY_COUNT
+			, STUDENT_DAILY_COST
+			, SAGC_NOTE
+		FROM MAS_SUB_AGENCY 
+		WHERE 
+			SAGC_ID = #{SAGC_ID}
+		]]>
+	</select>
+	
+	<delete id="removeSubAgency" parameterType="map">
+		DELETE FROM MAS_SUB_AGENCY WHERE SUB_AGC_ID = #{SUB_AGC_ID}
+	</delete>
+	
+	<sql id="getSubAgentRefineQuery">
+		<![CDATA[
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.SAGT_ID
+			, T1.SAGC_ID
+			, T1.CD_SAGT_TYPE
+			, GET_CODE_BOTTOM_NAME(7, 1, T1.CD_SAGT_TYPE) AS CD_SAGT_TYPE_NAME
+			, T1.SAGT_NAME
+			, T1.SAGT_BIRTHDAY
+			, T1.SAGT_TEL
+			, DATE_FORMAT(T1.REQUEST_DATE, '%Y-%m-%d') as REQUEST_DATE
+			, DATE_FORMAT(T1.APPLY_DATE, '%Y-%m-%d') as APPLY_DATE
+			, IFNULL(DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d'), '') as FINAL_APL_DATE
+			, T1.CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, T1.CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, T1.CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, T1.CD_CHNG_STATE), '-') AS CD_CHNG_STATE_NAME
+			, T1.SAGT_NOTE
+			, T2.SAGC_NAME
+			, T2.CD_FACILITY_LEV1
+			, GET_CODE_MIDDLE_NAME(6, T2.CD_FACILITY_LEV1) AS CD_FACILITY_LEV1_NAME
+			, T2.CD_FACILITY_LEV2
+			, GET_CODE_BOTTOM_NAME(6, T2.CD_FACILITY_LEV1, T2.CD_FACILITY_LEV2) AS CD_FACILITY_LEV2_NAME
+		FROM MAS_SUB_AGENT T1
+		LEFT JOIN MAS_SUB_AGENCY T2 ON T1.SAGC_ID = T2.SAGC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		]]>
+		<if test="AGC_ID != null and AGC_ID != ''">
+			AND T2.AGC_ID = #{AGC_ID}
+		</if>
+		<if test="SAGC_NAME != null and SAGC_NAME != ''">
+			AND T2.SAGC_NAME LIKE CONCAT('%', #{SAGC_NAME}, '%')
+		</if>
+		<if test="CD_FACILITY_LEV1 != null and CD_FACILITY_LEV1 != ''">
+			AND T2.CD_FACILITY_LEV1 = #{CD_FACILITY_LEV1}
+		</if>
+		<if test="CD_FACILITY_LEV2 != null and CD_FACILITY_LEV2 != ''">
+			AND T2.CD_FACILITY_LEV2 = #{CD_FACILITY_LEV2}
+		</if>
+		<if test="CD_SAGT_TYPE != null and CD_SAGT_TYPE != ''">
+			AND T1.CD_SAGT_TYPE = #{CD_SAGT_TYPE}
+		</if>
+		<if test="SAGT_NAME != null and SAGT_NAME != ''">
+			AND T1.SAGT_NAME LIKE CONCAT('%', #{SAGT_NAME}, '%')
+		</if>
+		<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''">
+			AND T1.CD_ADD_STATE = #{CD_ADD_STATE}
+		</if>
+		<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+			AND T1.CD_CHNG_STATE = #{CD_CHNG_STATE}
+		</if>
+		<if test="START_FINAL_APL_DATE != null and START_FINAL_APL_DATE != ''">
+			AND DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d') >= #{START_FINAL_APL_DATE}
+		</if>
+		<if test="END_FINAL_APL_DATE != null and END_FINAL_APL_DATE != ''">
+			AND DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d') <![CDATA[<=]]> #{END_FINAL_APL_DATE}
+		</if>
+		ORDER BY T1.REQUEST_DATE DESC
+	</sql>
+	
+	<select id="getSubAgentCount" parameterType="map" resultType="int">
+		SELECT COUNT(T2.NO) FROM (<include refid="getSubAgentRefineQuery"/>) T2
+	</select>
+	
+	<select id="getSubAgentList" parameterType="map" resultType="map">
+		<include refid="getSubAgentRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX !=''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+	
+	<!-- // 실습지도자 관련 Mapper(안명진) -->
+	<select id="getSubAgentDetail" parameterType="map" resultType="map">
+		SELECT 
+			  T1.SAGT_ID
+			, T1.SAGC_ID
+			, T1.CD_SAGT_TYPE
+			, GET_CODE_BOTTOM_NAME(7, 1, T1.CD_SAGT_TYPE) AS CD_SAGT_TYPE_NAME
+			, T1.SAGT_NAME
+			, DATE_FORMAT(T1.SAGT_BIRTHDAY, '%Y-%m-%d') AS SAGT_BIRTHDAY
+			, T1.SAGT_TEL
+			, DATE_FORMAT(T1.REQUEST_DATE, '%Y-%m-%d') AS REQUEST_DATE
+			, IFNULL(DATE_FORMAT(T1.APPLY_DATE, '%Y-%m-%d'), '') AS APPLY_DATE
+			, IFNULL(DATE_FORMAT(T1.FINAL_APL_DATE, '%Y-%m-%d'), '') AS FINAL_APL_DATE
+			, T1.CD_ADD_STATE
+			, GET_CODE_BOTTOM_NAME(1, 1, T1.CD_ADD_STATE) AS CD_ADD_STATE_NAME
+			, IFNULL(T1.CD_CHNG_STATE, '') AS CD_CHNG_STATE
+			, IFNULL(GET_CODE_BOTTOM_NAME(2, 1, T1.CD_CHNG_STATE), '') AS CD_CHNG_STATE_NAME
+			, T1.SAGT_NOTE
+			, T2.SAGC_NAME
+		FROM MAS_SUB_AGENT T1
+		LEFT JOIN MAS_SUB_AGENCY T2 ON T1.SAGC_ID = T2.SAGC_ID
+		WHERE T1.SAGT_ID = #{SAGT_ID}
+	</select>
+	
+	<select id="getSubAgentLicenseList" parameterType="map" resultType="map">
+		SELECT 
+			T1.LCNS_ID
+			, T1.SAGT_ID
+			, T1.LCNS_NAME
+			, DATE_FORMAT(T1.LCNS_OBTAIN_DATE, '%Y-%m-%d') AS LCNS_OBTAIN_DATE
+			, T1.LCNS_NOTE
+			, T2.FILE_ID
+			, T2.CD_TABLE
+			, T2.ID_PK
+			, T2.ORIGINAL_FILE_NAME
+			, T2.SERVER_FILE_NAME
+		FROM SUB_AGENT_LICENSE T1 
+		LEFT JOIN MAS_FILE T2 ON T1.LCNS_ID = T2.ID_PK AND T2.CD_TABLE = 'SUB_AGENT_LICENSE'
+		WHERE T1.SAGT_ID = #{SAGT_ID}
+	</select>
+	
+	<select id="getSubAgentCareerList" parameterType="map" resultType="map">
+		SELECT 
+			T1.CRR_ID
+			, T1.SAGT_ID
+			, T1.CRR_NAME
+			, DATE_FORMAT(T1.CRR_BEGIN_DATE, '%Y-%m-%d') AS CRR_BEGIN_DATE
+			, DATE_FORMAT(T1.CRR_END_DATE, '%Y-%m-%d') AS CRR_END_DATE
+			, T1.CRR_NOTE
+			, T2.FILE_ID
+			, T2.CD_TABLE
+			, T2.ID_PK
+			, T2.ORIGINAL_FILE_NAME
+			, T2.SERVER_FILE_NAME
+		FROM SUB_AGENT_CAREER T1 
+		LEFT JOIN MAS_FILE T2 ON T1.CRR_ID = T2.ID_PK AND T2.CD_TABLE = 'SUB_AGENT_CAREER'
+		WHERE T1.SAGT_ID = #{SAGT_ID}
+	</select> 
+	
+	<insert id="addSubAgent" parameterType="map" useGeneratedKeys="true" keyProperty="SAGT_ID">
+		INSERT INTO MAS_SUB_AGENT (
+			SAGC_ID
+			, CD_SAGT_TYPE
+			, SAGT_NAME
+			, SAGT_BIRTHDAY
+			, SAGT_TEL
+			, REQUEST_DATE
+			, CD_ADD_STATE
+			, SAGT_NOTE
+		) VALUES (
+			#{SAGC_ID}
+			, #{CD_SAGT_TYPE}
+			, #{SAGT_NAME}
+			, #{SAGT_BIRTHDAY}
+			, #{SAGT_TEL}
+			, now()
+			, '1'
+			, #{SAGT_NOTE}
+		)
+		
+		<selectKey resultType="int" keyProperty="SAGT_ID" order="AFTER">
+			SELECT MAX(SAGT_ID) 
+			FROM MAS_SUB_AGENT 
+			WHERE 1=1 
+			AND SAGC_ID = ${SAGC_ID}
+      	</selectKey>
+	</insert>
+	
+	<update id="setSubAgent" parameterType="map">
+		UPDATE MAS_SUB_AGENT SET 
+			CD_SAGT_TYPE 	= #{CD_SAGT_TYPE}
+			, SAGT_NAME 	= #{SAGT_NAME}
+			, SAGT_BIRTHDAY = #{SAGT_BIRTHDAY}
+			, SAGT_TEL 	    = #{SAGT_TEL} 
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+		<if test="CD_CHNG_STATE != null and CD_CHNG_STATE != ''">
+			, CD_CHNG_STATE = #{CD_CHNG_STATE}
+		</if>
+			, SAGT_NOTE = #{SAGT_NOTE}
+		WHERE 
+			SAGT_ID = #{SAGT_ID}
+	</update>
+	
+	<update id="removeSubAgent" parameterType="map">
+		UPDATE MAS_SUB_AGENT SET
+			CD_ADD_STATE = 3
+		WHERE SAGT_ID = #{SAGT_ID}
+	</update>
+	
+	<delete id="removeSubAgentLicense" parameterType="String">
+		DELETE FROM SUB_AGENT_LICENSE WHERE LCNS_ID = #{lcnsId}
+	</delete>
+	
+	<insert id="addSubAgentLicense" parameterType="map">
+		INSERT INTO SUB_AGENT_LICENSE (
+			SAGT_ID
+			, LCNS_NAME
+			, LCNS_OBTAIN_DATE
+			, LCNS_NOTE
+		) VALUES (
+			#{SAGT_ID}
+			, #{LCNS_NAME}
+			, STR_TO_DATE(#{LCNS_OBTAIN_DATE}, '%Y-%m-%d')
+			, IFNULL(#{LCNS_NOTE}, '')
+		)
+		<selectKey resultType="int" keyProperty="LCNS_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setSubAgentLicense" parameterType="map">
+		UPDATE SUB_AGENT_LICENSE SET
+			LCNS_NAME = #{LCNS_NAME}
+			, LCNS_OBTAIN_DATE = STR_TO_DATE(#{LCNS_OBTAIN_DATE}, '%Y-%m-%d')
+			, LCNS_NOTE = IFNULL(#{LCNS_NOTE}, '')
+		WHERE LCNS_ID = #{LCNS_ID}
+	</update>
+	
+	<delete id="removeSubAgentCareer" parameterType="String">
+		DELETE FROM SUB_AGENT_CAREER WHERE CRR_ID = #{crrId}
+	</delete>
+	
+	<insert id="addSubAgentCareer" parameterType="map">
+		INSERT INTO SUB_AGENT_CAREER (
+			SAGT_ID
+			, CRR_NAME
+			, CRR_BEGIN_DATE
+			, CRR_END_DATE
+			, CRR_NOTE
+		) VALUES (
+			#{SAGT_ID}
+			, #{CRR_NAME}
+			, STR_TO_DATE(#{CRR_BEGIN_DATE}, '%Y-%m-%d')
+			, STR_TO_DATE(#{CRR_END_DATE}, '%Y-%m-%d')
+			, IFNULL(#{CRR_NOTE}, '')
+		)
+		<selectKey resultType="int" keyProperty="CRR_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setSubAgentCareer" parameterType="map">
+		UPDATE SUB_AGENT_CAREER SET
+			CRR_NAME = #{CRR_NAME}
+			, CRR_BEGIN_DATE = STR_TO_DATE(#{CRR_BEGIN_DATE}, '%Y-%m-%d')
+			, CRR_END_DATE = STR_TO_DATE(#{CRR_END_DATE}, '%Y-%m-%d')
+			, CRR_NOTE = IFNULL(#{CRR_NOTE}, '')
+		WHERE CRR_ID = #{CRR_ID}
+	</update>
+	
+	<insert id="addHisSubAgentChange" parameterType="map">
+		<![CDATA[
+		INSERT INTO HIS_SUB_AGENT_CHANGE (
+			SAGT_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{SAGT_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT 
+				CASE 
+					WHEN IFNULL(CD_CHNG_STATE, '') <> '' THEN CD_CHNG_STATE 
+					ELSE CD_ADD_STATE
+				END AS CD_CHNG_STATE
+				FROM MAS_SUB_AGENT WHERE SAGT_ID = #{SAGT_ID})
+		)
+		]]>
+	</insert>
+	
+	<select id="getSubAgencyByAgcId" parameterType="map" resultType="map">
+		SELECT * 
+		FROM MAS_SUB_AGENCY 
+		WHERE AGC_ID = #{AGC_ID}
+		AND CD_ADD_STATE = 3 
+	</select>
+	
+	<select id="getHisSubAgentList" parameterType="map" resultType="map">
+		<![CDATA[
+			SELECT
+				CHNG_ID
+				, SAGT_ID
+				, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+				, CHNG_JSON
+				, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgentDetail.SAGT_NOTE')) AS SAGT_NOTE
+				, CD_CHNG_STATE
+				, CASE WHEN IFNULL(JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgentDetail.CD_CHNG_STATE')), '') <> '' THEN GET_CODE_BOTTOM_NAME(2, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgentDetail.CD_CHNG_STATE')))
+						ELSE GET_CODE_BOTTOM_NAME(1, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgentDetail.CD_ADD_STATE')))				
+				END AS CD_CHNG_STATE_NAME
+			FROM HIS_SUB_AGENT_CHANGE
+			WHERE SAGT_ID = #{SAGT_ID}
+			ORDER BY CHNG_DATE ASC
+		]]>		
+	</select>
+	
+	<select id="getHisSubAgentDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, SAGT_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."subAgentDetail"') as subAgentDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."subAgentLicenseList"') as subAgentLicenseList
+			, JSON_EXTRACT(CHNG_JSON, '$."subAgentCareerList"') as subAgentCareerList
+		FROM HIS_SUB_AGENT_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}	
+	</select>
+	
+	<update id="setSubAgentChngState" parameterType="map">
+		UPDATE MAS_SUB_AGENT SET
+			CD_CHNG_STATE = #{CD_CHNG_STATE}
+			, SAGT_NOTE = #{SAGT_NOTE}
+		WHERE SAGT_ID = #{SAGT_ID}	
+	</update>
+	
+	<!-- // 실습지도자 관련 Mapper(안명진) -->
+	
+	<select id="getHisAgencyList" parameterType="map" resultType="map">
+		<![CDATA[
+		SELECT
+			CHNG_ID
+			, AGC_ID
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, CHNG_JSON
+			, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agencyDetail.AGC_NOTE')) AS AGC_NOTE
+			, CD_CHNG_STATE
+			, CASE WHEN IFNULL(JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agencyDetail.CD_CHNG_STATE')), '') <> '' THEN GET_CODE_BOTTOM_NAME(2, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agencyDetail.CD_CHNG_STATE')))
+				ELSE GET_CODE_BOTTOM_NAME(1, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agencyDetail.CD_ADD_STATE')))
+			END AS CD_CHNG_STATE_NAME
+		FROM HIS_AGENCY_CHANGE
+		WHERE AGC_ID = #{AGC_ID}
+		ORDER BY CHNG_DATE ASC
+		]]>
+	</select>
+	
+	<select id="getHisAgencyDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, AGC_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."agencyDetail"') AS agencyDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."agencyWorkerList"') AS agencyWorkerList
+		FROM HIS_AGENCY_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+	
+	<delete id="removeAgentLicense" parameterType="String">
+		DELETE FROM AGENT_LICENSE WHERE LCNS_ID = #{lcnsId}
+	</delete>
+	
+	<insert id="addAgentLicense" parameterType="map">
+		INSERT INTO AGENT_LICENSE (
+			AGT_ID
+			, LCNS_NAME
+			, LCNS_OBTAIN_DATE
+			, LCNS_NOTE
+		) VALUES (
+			#{AGT_ID}
+			, #{LCNS_NAME}
+			, STR_TO_DATE(#{LCNS_OBTAIN_DATE}, '%Y-%m-%d')
+			, IFNULL(#{LCNS_NOTE}, '')
+		)
+		<selectKey resultType="int" keyProperty="LCNS_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setAgentLicense" parameterType="map">
+		UPDATE AGENT_LICENSE SET
+			LCNS_NAME = #{LCNS_NAME}
+			, LCNS_OBTAIN_DATE = STR_TO_DATE(#{LCNS_OBTAIN_DATE}, '%Y-%m-%d')
+			, LCNS_NOTE = IFNULL(#{LCNS_NOTE}, '')
+		WHERE LCNS_ID = #{LCNS_ID}
+	</update>
+	
+	<delete id="removeAgentCareer" parameterType="String">
+		DELETE FROM AGENT_CAREER WHERE CRR_ID = #{crrId}
+	</delete>
+	
+	<insert id="addAgentCareer" parameterType="map">
+		INSERT INTO AGENT_CAREER (
+			AGT_ID
+			, CRR_NAME
+			, CRR_BEGIN_DATE
+			, CRR_END_DATE
+			, CRR_NOTE
+		) VALUES (
+			#{AGT_ID}
+			, #{CRR_NAME}
+			, STR_TO_DATE(#{CRR_BEGIN_DATE}, '%Y-%m-%d')
+			, STR_TO_DATE(#{CRR_END_DATE}, '%Y-%m-%d')
+			, IFNULL(#{CRR_NOTE}, '')
+		)
+		<selectKey resultType="int" keyProperty="CRR_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setAgentCareer" parameterType="map">
+		UPDATE AGENT_CAREER SET
+			CRR_NAME = #{CRR_NAME}
+			, CRR_BEGIN_DATE = STR_TO_DATE(#{CRR_BEGIN_DATE}, '%Y-%m-%d')
+			, CRR_END_DATE = STR_TO_DATE(#{CRR_END_DATE}, '%Y-%m-%d')
+			, CRR_NOTE = IFNULL(#{CRR_NOTE}, '')
+		WHERE CRR_ID = #{CRR_ID}
+	</update>
+	
+	<delete id="removeAgentOutsideLecture" parameterType="map">
+		DELETE FROM AGENT_OUTSIDE_LECTURE WHERE LCTR_ID = #{lctrId}
+	</delete>
+	
+	<insert id="addAgentOutsideLecture" parameterType="map">
+		INSERT INTO AGENT_OUTSIDE_LECTURE (
+			AGT_ID
+			, LCTR_NAME
+			, LCTR_NOTE
+		) VALUES (
+			#{AGT_ID}
+			, #{LCTR_NAME}
+			, IFNULL(#{LCTR_NOTE}, '')
+		)
+		<selectKey resultType="int" keyProperty="LCTR_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setAgentOutsideLecture" parameterType="map">
+		UPDATE AGENT_OUTSIDE_LECTURE SET
+			LCTR_NAME = #{LCTR_NAME}
+			, LCTR_NOTE = IFNULL(#{LCTR_NOTE}, '')
+		WHERE LCTR_ID = #{LCTR_ID}
+	</update>
+	
+	<select id="getAgentLicenseList" parameterType="map" resultType="map">
+		SELECT 
+			T1.LCNS_ID
+			, T1.AGT_ID
+			, T1.LCNS_NAME
+			, DATE_FORMAT(T1.LCNS_OBTAIN_DATE, '%Y-%m-%d') AS LCNS_OBTAIN_DATE
+			, T1.LCNS_NOTE
+			, T2.FILE_ID
+			, T2.CD_TABLE
+			, T2.ID_PK
+			, T2.ORIGINAL_FILE_NAME
+			, T2.SERVER_FILE_NAME
+		FROM AGENT_LICENSE T1 LEFT JOIN MAS_FILE T2 ON T1.LCNS_ID = T2.ID_PK AND T2.CD_TABLE = 'AGENT_LICENSE'
+		WHERE T1.AGT_ID = #{AGT_ID}
+	</select>
+	
+	<select id="getAgentCareerList" parameterType="map" resultType="map">
+		SELECT 
+			T1.CRR_ID
+			, T1.AGT_ID
+			, T1.CRR_NAME
+			, DATE_FORMAT(T1.CRR_BEGIN_DATE, '%Y-%m-%d') AS CRR_BEGIN_DATE
+			, DATE_FORMAT(T1.CRR_END_DATE, '%Y-%m-%d') AS CRR_END_DATE
+			, T1.CRR_NOTE
+			, T2.FILE_ID
+			, T2.CD_TABLE
+			, T2.ID_PK
+			, T2.ORIGINAL_FILE_NAME
+			, T2.SERVER_FILE_NAME
+		FROM AGENT_CAREER T1 LEFT JOIN MAS_FILE T2 ON T1.CRR_ID = T2.ID_PK AND T2.CD_TABLE = 'AGENT_CAREER'
+		WHERE T1.AGT_ID = #{AGT_ID}
+	</select>
+	
+	<select id="getAgentOutsideLectureList" parameterType="map" resultType="map">
+		SELECT
+			LCTR_ID
+			, AGT_ID
+			, LCTR_NAME
+			, LCTR_NOTE
+		FROM AGENT_OUTSIDE_LECTURE
+		WHERE AGT_ID = #{AGT_ID}
+	</select>
+	
+	<select id="getHisAgentList" parameterType="map" resultType="map">
+		<![CDATA[
+		SELECT
+			CHNG_ID
+			, AGT_ID
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, CHNG_JSON
+			, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agentDetail.AGT_NOTE')) AS AGT_NOTE
+			, CD_CHNG_STATE
+			, CASE WHEN IFNULL(JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agentDetail.CD_CHNG_STATE')), '') <> '' THEN GET_CODE_BOTTOM_NAME(2, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agentDetail.CD_CHNG_STATE')))
+				ELSE GET_CODE_BOTTOM_NAME(1, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.agentDetail.CD_ADD_STATE')))
+			END AS CD_CHNG_STATE_NAME
+		FROM HIS_AGENT_CHANGE
+		WHERE AGT_ID = #{AGT_ID}
+		ORDER BY CHNG_DATE ASC
+		]]>
+	</select>
+	
+	<select id="getHisAgentDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, AGT_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."agentDetail"') AS agentDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."agentClassList"') AS agentClassList
+			, JSON_EXTRACT(CHNG_JSON, '$."agentLicenseList"') AS agentLicenseList
+			, JSON_EXTRACT(CHNG_JSON, '$."agentCareerList"') AS agentCareerList
+			, JSON_EXTRACT(CHNG_JSON, '$."agentOutsideLectureList"') AS agentOutsideLectureList
+		FROM HIS_AGENT_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+	
+	<delete id="removeSubAgencyContractDocument" parameterType="String">
+		DELETE FROM SUB_AGENCY_CONTRACT_DOCUMENT WHERE CONT_DOC_ID = #{CONT_DOC_ID}
+	</delete>
+	
+	<insert id="addSubAgencyContractDocument" parameterType="map">
+		INSERT INTO SUB_AGENCY_CONTRACT_DOCUMENT (
+			SAGC_ID
+			, CD_CONT_DOC_TYPE
+			, CONT_DOC_NOTE
+		) VALUES (
+			#{SAGC_ID}
+			, #{CD_CONT_DOC_TYPE}
+			, #{CONT_DOC_NOTE}
+		)
+		<selectKey resultType="int" keyProperty="CONT_DOC_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setSubAgencyContractDocument" parameterType="map">
+		UPDATE SUB_AGENCY_CONTRACT_DOCUMENT SET
+			CD_CONT_DOC_TYPE = #{CD_CONT_DOC_TYPE}
+			, CONT_DOC_NOTE = #{CONT_DOC_NOTE}
+		WHERE CONT_DOC_ID = #{CONT_DOC_ID}
+	</update>
+	
+	<select id="getSubAgencyContractDocumentList" parameterType="map" resultType="map">
+		SELECT 
+			T1.CONT_DOC_ID
+			, T1.SAGC_ID
+			, T1.CD_CONT_DOC_TYPE
+			, T1.CONT_DOC_NOTE
+			, T2.FILE_ID
+			, T2.CD_TABLE
+			, T2.ID_PK
+			, T2.ORIGINAL_FILE_NAME
+			, T2.SERVER_FILE_NAME
+		FROM SUB_AGENCY_CONTRACT_DOCUMENT T1 LEFT JOIN MAS_FILE T2 ON T1.CONT_DOC_ID = T2.ID_PK AND T2.CD_TABLE = 'SUB_AGENCY_CONTRACT_DOCUMENT'
+		WHERE T1.SAGC_ID = #{SAGC_ID}
+	</select>
+	
+	<insert id="addHisSubAgencyChange" parameterType="map">
+		<![CDATA[
+		INSERT INTO HIS_SUB_AGENCY_CHANGE (
+			SAGC_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{SAGC_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT 
+				CASE 
+					WHEN IFNULL(CD_CHNG_STATE, '') <> '' THEN CD_CHNG_STATE 
+					ELSE CD_ADD_STATE
+				END AS CD_CHNG_STATE
+				FROM MAS_SUB_AGENCY WHERE SAGC_ID = #{SAGC_ID})
+		)
+		]]>
+	</insert>
+	
+	<update id="setAgentChngState" parameterType="map">
+		UPDATE MAS_AGENT SET
+			CD_CHNG_STATE = #{CD_CHNG_STATE}
+			, AGT_NOTE = #{AGT_NOTE}
+		WHERE AGT_ID = #{AGT_ID}
+	</update>
+	
+	<update id="setSubAgencyChngState" parameterType="map">
+		UPDATE MAS_SUB_AGENCY SET
+			CD_CHNG_STATE = #{CD_CHNG_STATE}
+			, AGT_NOTE = #{AGT_NOTE}
+		WHERE SAGC_ID = #{SAGC_ID}
+	</update>
+	
+	<select id="getHisSubAgencyList" parameterType="map" resultType="map">
+		<![CDATA[
+		SELECT
+			CHNG_ID
+			, SAGC_ID
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, CHNG_JSON
+			, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgencyDetail.SAGC_NOTE')) AS SAGC_NOTE
+			, CD_CHNG_STATE
+			, CASE WHEN IFNULL(JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgencyDetail.CD_CHNG_STATE')), '') <> '' THEN GET_CODE_BOTTOM_NAME(2, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgencyDetail.CD_CHNG_STATE')))
+				ELSE GET_CODE_BOTTOM_NAME(1, 1, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.subAgencyDetail.CD_ADD_STATE')))
+			END AS CD_CHNG_STATE_NAME
+		FROM HIS_SUB_AGENCY_CHANGE
+		WHERE SAGC_ID = #{SAGC_ID}
+		ORDER BY CHNG_DATE ASC
+		]]>
+	</select>
+	
+	<select id="getHisSubAgencyDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, SAGC_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."subAgencyDetail"') AS subAgencyDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."subAgencyContractDocumentList"') AS subAgencyContractDocumentList
+		FROM HIS_SUB_AGENCY_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+	
+	<sql id="getStudentRefineQuery">
+		<![CDATA[
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.STU_ID
+			, T1.AGC_ID
+			, T1.CD_CLASS_TYPE
+			, GET_CODE_BOTTOM_NAME(8, 1, T1.CD_CLASS_TYPE) AS CD_CLASS_TYPE_NAME
+			, T1.LICENSE_SERIAL
+			, T1.STU_NAME
+			, T1.STU_ID_NUMBER
+			, T1.STU_TEL
+			, T1.STU_ZIP
+			, T1.STU_ADDRESS
+			, T1.L_LECTURE_ID
+			, IFNULL(T3.CLASS_TITLE, '') AS L_LECTURE_TITLE
+			, T1.P_LECTURE_ID
+			, IFNULL(T4.CLASS_TITLE, '') AS P_LECTURE_TITLE
+			, T1.S_LECTURE_ID
+			, IFNULL(T5.CLASS_TITLE, '') AS S_LECTURE_TITLE
+			, T1.COMPLETE_REPORT_ID
+			, IFNULL(T6.CLASS_TITLE, '') AS COMPLETE_REPORT_TITLE
+			, T1.ADD_DATE
+			, T1.CD_ADD_STATE
+			, T1.CHNG_DATE
+			, T1.COMPLETE_DATE
+			, T1.TEST_NAME
+			, T1.TEST_DATE
+			, T1.PASS_DATE
+			, IFNULL(T1.PASS_NUMBER, '') AS PASS_NUMBER
+			, T1.DISQUALIFICATION_YN
+			, T1.DISQUALIFICATION_DATE
+			, T1.L_TIME
+			, T1.P_TIME1
+			, T1.P_TIME2
+			, T1.S_TIME
+			, IFNULL(T1.STU_NOTE, '') AS STU_NOTE
+		FROM MAS_STUDENT T1
+		LEFT JOIN MAS_AGENCY T2 ON T1.AGC_ID = T2.AGC_ID
+		LEFT JOIN BEGIN_CLASS_LOGIC T3 ON T1.L_LECTURE_ID = T3.CLASS_ID
+		LEFT JOIN BEGIN_CLASS_PRACTICE T4 ON T1.P_LECTURE_ID = T4.CLASS_ID
+		LEFT JOIN BEGIN_CLASS_SUB_PRACTICE T5 ON T1.S_LECTURE_ID = T5.CLASS_ID
+		LEFT JOIN END_CLASS T6 ON T1.COMPLETE_REPORT_ID = T6.CLASS_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE T1.CD_ADD_STATE <> 3 -- CD_ADD_STATE [1:등록, 2:변경, 3:삭제]
+		]]>
+		<if test="AGC_NAME != null and AGC_NAME != ''">
+			AND T2.AGC_NAME LIKE CONCAT('%', #{AGC_NAME}, '%')
+		</if>
+		<if test="CD_CLASS_TYPE != null and CD_CLASS_TYPE != ''">
+			AND T1.CD_CLASS_TYPE = #{CD_CLASS_TYPE}
+		</if>
+		<if test="L_LECTURE_TITLE != null and L_LECTURE_TITLE != ''">
+			AND T3.CLASS_TITLE LIKE CONCAT('%', #{L_LECTURE_TITLE}, '%')
+		</if>
+		<if test="P_LECTURE_TITLE != null and P_LECTURE_TITLE != ''">
+			AND T4.CLASS_TITLE LIKE CONCAT('%', #{P_LECTURE_TITLE}, '%')
+		</if>
+		<if test="S_LECTURE_TITLE != null and S_LECTURE_TITLE != ''">
+			AND T5.CLASS_TITLE LIKE CONCAT('%', #{S_LECTURE_TITLE}, '%')
+		</if>
+		<if test="COMPLETE_REPORT_TITLE != null and COMPLETE_REPORT_TITLE != ''">
+			AND T6.CLASS_TITLE LIKE CONCAT('%', #{COMPLETE_REPORT_TITLE}, '%')
+		</if>
+		<if test="STU_NAME != null and STU_NAME != ''">
+			AND T1.STU_NAME LIKE CONCAT('%', #{STU_NAME}, '%')
+		</if>
+		<if test="STU_ID_NUMBER != null and STU_ID_NUMBER != ''">
+			AND T1.STU_ID_NUMBER LIKE CONCAT('%', #{STU_ID_NUMBER}, '%')
+		</if>
+		<if test="USE_YN != null and USE_YN != ''">
+			AND T1.USE_YN = #{USE_YN}
+		</if>
+		<if test="PASS_NUMBER != null and PASS_NUMBER != ''">
+			AND T1.PASS_NUMBER LIKE CONCAT('%', #{PASS_NUMBER}, '%')
+		</if>
+		ORDER BY ADD_DATE DESC
+	</sql>
+	
+	<select id="getStudentCount" parameterType="map" resultType="int">
+		SELECT COUNT(SUB.NO) FROM (<include refid="getStudentRefineQuery"/>) SUB
+	</select>
+	
+	<select id="getStudentList" parameterType="map" resultType="map">
+		<include refid="getStudentRefineQuery"/>
+		LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}
+	</select>
+	
+	<select id="getStudentDetail" parameterType="map" resultType="map">
+		SELECT 
+			T1.STU_ID
+			, T1.AGC_ID
+			, T1.CD_CLASS_TYPE
+			, GET_CODE_BOTTOM_NAME(8, 1, T1.CD_CLASS_TYPE) AS CD_CLASS_TYPE_NAME
+			, T1.LICENSE_SERIAL
+			, T1.STU_NAME
+			, T1.STU_ID_NUMBER
+			, T1.STU_TEL
+			, T1.STU_ZIP
+			, T1.STU_ADDRESS
+			, IFNULL(T1.L_LECTURE_ID, '') AS L_LECTURE_ID
+			, IFNULL(T3.CLASS_TITLE, '') AS L_LECTURE_TITLE
+			, IFNULL(T1.P_LECTURE_ID, '') AS P_LECTURE_ID
+			, IFNULL(T4.CLASS_TITLE, '') AS P_LECTURE_TITLE
+			, IFNULL(T1.S_LECTURE_ID, '') AS S_LECTURE_ID
+			, IFNULL(T5.CLASS_TITLE, '') AS S_LECTURE_TITLE
+			, IFNULL(T1.COMPLETE_REPORT_ID, '') AS COMPLETE_REPORT_ID
+			, IFNULL(T6.CLASS_TITLE, '') AS COMPLETE_REPORT_TITLE
+			, DATE_FORMAT(T1.ADD_DATE, '%Y-%m-%d') AS ADD_DATE
+			, T1.CD_ADD_STATE
+			, IFNULL(DATE_FORMAT(T1.CHNG_DATE, '%Y-%m-%d'), '') AS CHNG_DATE
+			, IFNULL(DATE_FORMAT(T1.COMPLETE_DATE, '%Y-%m-%d'), '') AS COMPLETE_DATE
+			, IFNULL(T1.TEST_NAME, '') AS TEST_NAME
+			, IFNULL(DATE_FORMAT(T1.TEST_DATE, '%Y-%m-%d'), '') AS TEST_DATE
+			, IFNULL(DATE_FORMAT(T1.PASS_DATE, '%Y-%m-%d'), '') AS PASS_DATE
+			, IFNULL(T1.PASS_NUMBER, '') AS PASS_NUMBER
+			, IFNULL(T1.DISQUALIFICATION_YN, '') AS DISQUALIFICATION_YN
+			, IFNULL(T1.DISQUALIFICATION_DATE, '') AS DISQUALIFICATION_DATE
+			, T1.L_TIME
+			, T1.P_TIME1
+			, T1.P_TIME2
+			, T1.S_TIME
+			, IFNULL(T1.STU_NOTE, '') AS STU_NOTE
+		FROM MAS_STUDENT T1
+		LEFT JOIN MAS_AGENCY T2 ON T1.AGC_ID = T2.AGC_ID
+		LEFT JOIN BEGIN_CLASS_LOGIC T3 ON T1.L_LECTURE_ID = T3.CLASS_ID
+		LEFT JOIN BEGIN_CLASS_PRACTICE T4 ON T1.P_LECTURE_ID = T4.CLASS_ID
+		LEFT JOIN BEGIN_CLASS_SUB_PRACTICE T5 ON T1.S_LECTURE_ID = T5.CLASS_ID
+		LEFT JOIN END_CLASS T6 ON T1.COMPLETE_REPORT_ID = T6.CLASS_ID
+		WHERE T1.STU_ID = #{STU_ID}
+	</select>
+	
+	<update id="removeStudent" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			CD_ADD_STATE = #{CD_ADD_STATE}
+			, CHNG_DATE = NOW()
+			, STU_NOTE = #{STU_NOTE}
+		WHERE STU_ID = #{STU_ID}
+	</update>
+	
+	<insert id="addHisStudentChange" parameterType="map">
+		<![CDATA[
+		INSERT INTO HIS_STUDENT_CHANGE (
+			STU_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{STU_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT CD_ADD_STATE FROM MAS_STUDENT WHERE STU_ID = #{STU_ID})
+		)
+		]]>
+	</insert>
+	
+	<insert id="addStudent" parameterType="map">
+		INSERT INTO MAS_STUDENT (
+			AGC_ID
+			, CD_CLASS_TYPE
+			, LICENSE_SERIAL
+			, STU_NAME
+			, STU_ID_NUMBER
+			, STU_TEL
+			, STU_ZIP
+			, STU_ADDRESS
+			, ADD_DATE
+			, CD_ADD_STATE
+			, CHNG_DATE
+			, STU_NOTE
+		) VALUES (
+			#{SESSION_AGC_ID}
+			, #{CD_CLASS_TYPE}
+			, #{LICENSE_SERIAL}
+			, #{STU_NAME}
+			, #{STU_ID_NUMBER}
+			, #{STU_TEL}
+			, #{STU_ZIP}
+			, #{STU_ADDRESS}
+			, NOW()
+			, #{CD_ADD_STATE}
+			, NOW()
+			, #{STU_NOTE}
+		)
+		<selectKey resultType="int" keyProperty="STU_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setStudent" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			CD_CLASS_TYPE = #{CD_CLASS_TYPE}
+			, LICENSE_SERIAL = #{LICENSE_SERIAL}
+			, STU_NAME = #{STU_NAME}
+			, STU_ID_NUMBER = #{STU_ID_NUMBER}
+			, STU_TEL = #{STU_TEL}
+			, STU_ZIP = #{STU_ZIP}
+			, STU_ADDRESS = #{STU_ADDRESS}
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+			, CHNG_DATE = NOW()
+			, STU_NOTE = #{STU_NOTE}
+		WHERE STU_ID = #{STU_ID}
+	</update>
+	
+	<select id="getHisStudentList" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, STU_ID
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, GET_CD_STATE_NAME(CD_CHNG_STATE) AS CD_CHNG_STATE_NAME
+			, JSON_UNQUOTE(JSON_EXTRACT(CHNG_JSON, '$.studentDetail.STU_NOTE')) AS STU_NOTE
+		FROM HIS_STUDENT_CHANGE
+		WHERE STU_ID = #{STU_ID}
+		ORDER BY CHNG_DATE ASC
+	</select>
+	
+	<select id="getHisStudentDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, STU_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."studentDetail"') AS studentDetail
+		FROM HIS_STUDENT_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+	
+	<sql id="getSelfCheckRefineQuery">
+		<![CDATA[
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			, T1.CHECK_ID
+			, T1.AGC_ID
+			, T1.CHECK_TITLE
+			, DATE_FORMAT(T1.WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+			, T1.WRITED_ID
+			, T2.AGC_NAME
+			, T3.USER_NAME
+			, T4.FILE_ID
+			, T4.CD_TABLE
+			, T4.ID_PK
+			, T4.ORIGINAL_FILE_NAME
+			, T4.SERVER_FILE_NAME
+		FROM MAS_SELF_CHECK T1
+		LEFT JOIN MAS_AGENCY T2 ON T1.AGC_ID = T2.AGC_ID
+		LEFT JOIN MAS_ACCOUNT T3 ON T1.WRITED_ID = T3.ACC_ID
+		LEFT JOIN MAS_FILE T4 ON T1.CHECK_ID = T4.ID_PK AND T4.CD_TABLE = 'MAS_SELF_CHECK'
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		]]>
+		<if test="CHECK_TITLE != null and CHECK_TITLE != ''">
+			AND T1.CHECK_TITLE LIKE CONCAT('%', #{CHECK_TITLE}, '%')
+		</if>
+		<if test="START_WRITED_DATE != null and START_WRITED_DATE != ''">
+			AND DATE_FORMAT(T1.WRITED_DATE, '%Y-%m-%d') >= #{START_WRITED_DATE}
+		</if>
+		<if test="END_WRITED_DATE != null and END_WRITED_DATE != ''">
+			AND DATE_FORMAT(T1.WRITED_DATE, '%Y-%m-%d') <![CDATA[<=]]> #{END_WRITED_DATE}
+		</if>
+		ORDER BY WRITED_DATE DESC
+	</sql>
+	
+	<select id="getSelfCheckCount" parameterType="map" resultType="int">
+		SELECT COUNT(SUB.NO) FROM (<include refid="getSelfCheckRefineQuery"/>) SUB
+	</select>
+	
+	<select id="getSelfCheckList" parameterType="map" resultType="map">
+		<include refid="getSelfCheckRefineQuery"/>
+		LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}
+	</select>
+	
+	<insert id="addSelfCheck" parameterType="map">
+		INSERT INTO MAS_SELF_CHECK (
+			AGC_ID
+			, CHECK_TITLE
+			, WRITED_DATE
+			, WRITED_ID
+		) VALUES (
+			#{AGC_ID}
+			, #{CHECK_TITLE}
+			, NOW()
+			, #{WRITED_ID}
+		)
+		<selectKey resultType="int" keyProperty="CHECK_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<delete id="removeSelfCheck" parameterType="map">
+		DELETE FROM MAS_SELF_CHECK WHERE CHECK_ID = #{CHECK_ID}
+	</delete>
+	
+	<select id="getAgencySerialByAdmin" parameterType="map" resultType="String">
+		SELECT
+			CONCAT(#{adminAgencySerial}, IFNULL(
+											(SELECT
+												REPLACE(AGC_SERIAL, #{adminAgencySerial}, '')
+											FROM MAS_AGENCY WHERE AGC_SERIAL LIKE CONCAT(#{adminAgencySerial}, '%')
+											ORDER BY REPLACE(AGC_SERIAL, #{adminAgencySerial}, '') DESC
+											LIMIT 1)
+										, 0) + 1
+			) AS AGC_SERIAL
+	</select>
+</mapper>

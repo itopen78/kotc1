@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.MainMapper">
+
+	<insert id="addNotice" parameterType="map">
+		INSERT INTO MAS_NOTICE (
+			NOTICE_TITLE 
+			, NOTICE_TEXT
+			, USER_TEL
+			, ACC_ID
+			, WRITED_DATE
+		) VALUES (
+			#{NOTICE_TITLE} 
+			, #{NOTICE_TEXT}
+			, #{USER_TEL}
+			, #{ACC_ID}
+			, NOW()
+		)
+		<selectKey resultType="int" keyProperty="NOTICE_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<sql id="getNoticeRefineQuery">
+		SELECT
+			@rownum := @rownum+1 AS NO
+			, T1.NOTICE_ID
+			, T1.NOTICE_TITLE
+			, T1.NOTICE_TEXT
+			, T1.USER_TEL
+			, T1.ACC_ID
+			, T2.USER_NAME
+			, DATE_FORMAT(T1.WRITED_DATE, '%Y.%m.%d') AS WRITED_DATE
+		FROM MAS_NOTICE T1
+		LEFT JOIN MAS_ACCOUNT T2 ON T1.ACC_ID = T2.ACC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		ORDER BY T1.WRITED_DATE DESC
+	</sql>
+	
+	<select id="getNoticeCount" parameterType="map" resultType="int">
+		SELECT COUNT(T3.NO) FROM (<include refid="getNoticeRefineQuery"/>) T3
+	</select>
+	
+	<select id="getNoticeList" parameterType="map" resultType="map">
+		<include refid="getNoticeRefineQuery"/>
+		<if test="PAGE_INDEX != null and PAGE_INDEX !=''">LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}</if>
+	</select>
+</mapper>

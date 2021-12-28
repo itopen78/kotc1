@@ -1,0 +1,1103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.BeginMapper">
+	
+	
+	<!--  이론/실기 S -->
+	<!--  1 S -->
+	<sql id="getLogicRefineQuery">
+		/* getLogicRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			,  
+			<include refid="bcl" />
+			, mag.AGC_NAME 
+		FROM BEGIN_CLASS_LOGIC bcl		
+		JOIN MAS_AGENCY mag ON bcl.AGC_ID = mag.AGC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND bcl.CD_ADD_STATE != '3'
+		<include refid="conditionLogic" />
+		ORDER BY bcl.WRITED_DATE DESC
+	</sql>
+	
+	<select id="getLogicCount" parameterType="map" resultType="int">
+		/* getLogicCount */
+		SELECT COUNT(T2.NO) FROM (<include refid="getLogicRefineQuery"/>) T2		
+		WHERE 1=1
+		AND CD_ADD_STATE != '3'
+	</select>
+	
+	<select id="getLogicList" parameterType="map" resultType="map">
+		/* getLogicList */
+		<include refid="getLogicRefineQuery"/>
+		LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}
+	</select>
+	
+    <sql id="conditionLogic">
+    		/* conditionLogic */
+
+		<if test="AGC_NAME != null and AGC_NAME != ''"> 
+			AND mag.AGC_NAME LIKE CONCAT('%', #{AGC_NAME}, '%') 
+		</if>
+		<if test="S_WRITED_DATE != null and S_WRITED_DATE != ''">
+			<![CDATA[	
+			AND date_format(bcl.WRITED_DATE, '%Y-%m-%d')  >= #{S_WRITED_DATE} 					
+			]]>
+		</if>
+		<if test="E_WRITED_DATE != null and E_WRITED_DATE != ''">
+			<![CDATA[									
+			AND date_format(bcl.WRITED_DATE, '%Y-%m-%d')  <= #{E_WRITED_DATE} 			
+			]]>
+		</if>		
+		<if test="CLASS_TITLE != null and CLASS_TITLE != ''"> 
+			AND bcl.CLASS_TITLE LIKE CONCAT('%', #{CLASS_TITLE}, '%') 
+		</if>
+		<if test="S_CHNG_DATE != null and S_CHNG_DATE != ''">
+			<![CDATA[	
+			AND date_format(bcl.CHNG_DATE, '%Y-%m-%d')  >= #{S_CHNG_DATE} 					
+			]]>
+		</if>
+		<if test="E_CHNG_DATE != null and E_CHNG_DATE != ''">
+			<![CDATA[									
+			AND date_format(bcl.CHNG_DATE, '%Y-%m-%d')  <= #{E_CHNG_DATE} 			
+			]]>
+		</if>		
+			
+				
+		<if test="CLASS_ID != null and CLASS_ID != ''"> 
+			AND bcl.CLASS_ID = #{CLASS_ID}
+		</if>
+		
+    </sql>
+    
+    
+	<sql id="bcl">
+		 bcl.CLASS_ID
+		, bcl.AGC_ID
+		, DATE_FORMAT(bcl.WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+		, bcl.WRITED_ID
+		, DATE_FORMAT(bcl.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, bcl.CHNG_ID
+		, bcl.CLASS_TITLE
+		, bcl.CLASS_BEGIN_DATE
+		, bcl.CLASS_END_DATE
+		, bcl.STUDENT_TOTAL_COUNT
+		, bcl.CLASS_NOTE
+		, bcl.CD_ADD_STATE
+		, CASE 
+			WHEN bcl.CD_ADD_STATE=1 THEN '등록'
+			WHEN bcl.CD_ADD_STATE=2 THEN '변경'
+			WHEN bcl.CD_ADD_STATE=3 THEN '삭제'
+			WHEN bcl.CD_ADD_STATE=4 THEN '임시저장'
+		    ELSE ''
+		  END AS CD_ADD_STATE_NAME
+		
+		, GET_USER_NAME(bcl.CHNG_ID) AS USER_NAME
+		
+	</sql>
+	<!--  1 E -->
+	
+	
+	
+	<!--  2 S -->
+	<select id="getLogicChangeList" parameterType="map" resultType="map">
+		/* getLogicChangeList */
+		SELECT 
+		@rownum := @rownum+1 AS NO
+		, hclc.CHNG_ID
+		, hclc.CLASS_ID
+		, DATE_FORMAT(hclc.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, hclc.CHNG_JSON
+		, CASE 
+			WHEN hclc.CD_CHNG_STATE=1 THEN '등록'
+			WHEN hclc.CD_CHNG_STATE=2 THEN '변경'
+			WHEN hclc.CD_CHNG_STATE=3 THEN '삭제'
+		    ELSE ''
+		  END AS CD_CHNG_STATE		
+		, json_value(CHNG_JSON,'$.logicDetail.CLASS_NOTE') AS CLASS_NOTE
+		, json_value(CHNG_JSON,'$.logicDetail.AGC_ID') AS AGC_ID
+		FROM HIS_CLASS_LOGIC_CHANGE hclc
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND hclc.CLASS_ID = #{CLASS_ID}
+		ORDER BY hclc.CHNG_ID DESC
+	
+	</select>
+	<!--  2 E -->
+	
+
+	<select id="getLogicDetail" parameterType="map" resultType="map">
+		/* getLogicDetailJSON 저장 */
+		SELECT
+			 bcl.CLASS_ID
+			, bcl.AGC_ID
+			, DATE_FORMAT(bcl.WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+			, bcl.WRITED_ID
+			, DATE_FORMAT(bcl.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, bcl.CHNG_ID
+			, bcl.CLASS_TITLE
+			, bcl.CLASS_BEGIN_DATE
+			, bcl.CLASS_END_DATE
+			, bcl.STUDENT_TOTAL_COUNT
+			, bcl.CLASS_NOTE
+			, bcl.CD_ADD_STATE
+			, CASE 
+				WHEN bcl.CD_ADD_STATE=1 THEN '등록'
+				WHEN bcl.CD_ADD_STATE=2 THEN '변경'
+				WHEN bcl.CD_ADD_STATE=3 THEN '삭제'
+				WHEN bcl.CD_ADD_STATE=4 THEN '임시저장'
+			    ELSE ''
+			  END AS CD_ADD_STATE_NAME
+			
+			, GET_USER_NAME(bcl.CHNG_ID) AS USER_NAME
+		FROM BEGIN_CLASS_LOGIC bcl
+		WHERE CLASS_ID = #{CLASS_ID}
+	</select>
+
+		
+	<update id="setLogic" parameterType="map">
+		UPDATE BEGIN_CLASS_LOGIC SET
+			CHNG_DATE  = NOW()
+			, CHNG_ID = #{ACC_ID}
+		<if test="CLASS_TITLE != null and CLASS_TITLE != ''"> 
+			, CLASS_TITLE = #{CLASS_TITLE}
+		</if>	
+		<if test="STUDENT_TOTAL_COUNT != null and STUDENT_TOTAL_COUNT != ''"> 
+			, STUDENT_TOTAL_COUNT = #{STUDENT_TOTAL_COUNT}
+		</if>		
+		<if test="CLASS_BEGIN_DATE != null and CLASS_BEGIN_DATE != ''"> 
+			, CLASS_BEGIN_DATE = #{CLASS_BEGIN_DATE}
+		</if>
+		<if test="CLASS_END_DATE != null and CLASS_END_DATE != ''"> 
+			, CLASS_END_DATE = #{CLASS_END_DATE}
+		</if>
+		<if test="CLASS_NOTE != null and CLASS_NOTE != ''"> 
+			, CLASS_NOTE = #{CLASS_NOTE}
+		</if>
+		<if test="CD_ADD_STATE != null and CD_ADD_STATE != ''"> 
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+		</if>
+		WHERE 
+			CLASS_ID = #{CLASS_ID}
+	</update>
+	
+	
+	<insert id="addHisLogic" parameterType="map">
+		INSERT INTO HIS_CLASS_LOGIC_CHANGE (
+			CLASS_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{CLASS_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT CD_ADD_STATE FROM BEGIN_CLASS_LOGIC WHERE CLASS_ID = #{CLASS_ID})
+		)
+	</insert>
+	<!--  이론/실기 E -->
+	
+	
+	
+	
+	
+	<!--  실습 S -->
+	<!--  3 S -->
+	<sql id="getPracticeRefineQuery">
+		/* getPracticeRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			,  
+			<include refid="bcp" />
+			, mag.AGC_NAME 
+		FROM BEGIN_CLASS_PRACTICE bcp 
+		JOIN MAS_AGENCY mag ON bcp.AGC_ID = mag.AGC_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND bcp.CD_ADD_STATE != '3'
+		<include refid="conditionPractice" />
+		ORDER BY bcp.WRITED_DATE DESC
+	</sql>
+	
+	<select id="getPracticeCount" parameterType="map" resultType="int">
+		/* getPracticeCount */
+		SELECT COUNT(T2.NO) FROM (<include refid="getPracticeRefineQuery"/>) T2		
+		WHERE 1=1
+		AND CD_ADD_STATE != '3'
+	</select>
+	
+	<select id="getPracticeList" parameterType="map" resultType="map">
+		/* getPracticeList */
+		<include refid="getPracticeRefineQuery"/>
+		LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}
+	</select>
+	
+    <sql id="conditionPractice">
+    		/* conditionPractice */
+
+		<if test="S_WRITED_DATE != null and S_WRITED_DATE != ''">
+			<![CDATA[	
+			AND date_format(bcp.WRITED_DATE, '%Y-%m-%d')  >= #{S_WRITED_DATE} 					
+			]]>
+		</if>
+		<if test="E_WRITED_DATE != null and E_WRITED_DATE != ''">
+			<![CDATA[									
+			AND date_format(bcp.WRITED_DATE, '%Y-%m-%d')  <= #{E_WRITED_DATE} 			
+			]]>
+		</if>		
+		<if test="CLASS_TITLE != null and CLASS_TITLE != ''"> 
+			AND bcp.CLASS_TITLE LIKE CONCAT('%', #{CLASS_TITLE}, '%') 
+		</if>
+		<if test="S_CHNG_DATE != null and S_CHNG_DATE != ''">
+			<![CDATA[	
+			AND date_format(bcp.CHNG_DATE, '%Y-%m-%d')  >= #{S_CHNG_DATE} 					
+			]]>
+		</if>
+		<if test="E_CHNG_DATE != null and E_CHNG_DATE != ''">
+			<![CDATA[									
+			AND date_format(bcp.CHNG_DATE, '%Y-%m-%d')  <= #{E_CHNG_DATE} 			
+			]]>
+		</if>		
+		<if test="CLASS_ID != null and CLASS_ID != ''"> 
+			AND bcp.CLASS_ID = #{CLASS_ID}
+		</if>
+			
+    </sql>
+    
+    
+	<sql id="bcp">
+
+		 bcp.CLASS_ID
+		, bcp.AGC_ID
+		, DATE_FORMAT(bcp.WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+		, bcp.WRITED_ID
+		, DATE_FORMAT(bcp.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, bcp.CHNG_ID
+		, bcp.CLASS_TITLE
+		, bcp.CLASS_BEGIN_DATE
+		, bcp.CLASS_END_DATE
+		, bcp.STUDENT_TOTAL_COUNT
+		, bcp.CLASS_NOTE
+		, CASE 
+			WHEN bcp.CD_ADD_STATE=1 THEN '등록'
+			WHEN bcp.CD_ADD_STATE=2 THEN '변경'
+			WHEN bcp.CD_ADD_STATE=3 THEN '삭제'
+		    ELSE ''
+		  END AS CD_ADD_STATE
+		
+		, GET_USER_NAME(bcp.CHNG_ID) AS USER_NAME
+		
+	</sql>
+	<!--  3 E -->
+	
+	
+	
+	<!--  4 S -->
+	<select id="getPracticeChangeList" parameterType="map" resultType="map">
+		/* getPracticeChangeList */
+		SELECT 
+		@rownum := @rownum+1 AS NO
+		, hcpc.CHNG_ID
+		, hcpc.CLASS_ID
+		, DATE_FORMAT(hcpc.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, hcpc.CHNG_JSON
+		, CASE 
+			WHEN hcpc.CD_CHNG_STATE=1 THEN '등록'
+			WHEN hcpc.CD_CHNG_STATE=2 THEN '변경'
+			WHEN hcpc.CD_CHNG_STATE=3 THEN '삭제'
+		    ELSE ''
+		  END AS CD_CHNG_STATE		
+		, json_value(CHNG_JSON,'$.practiceDetail.CLASS_NOTE') AS CLASS_NOTE
+		FROM HIS_CLASS_PRACTICE_CHANGE hcpc
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND hcpc.CLASS_ID = #{CLASS_ID}
+		ORDER BY hcpc.CHNG_ID DESC
+	
+	</select>
+	<!--  4 E -->
+	
+
+	<select id="getPracticeDetail" parameterType="map" resultType="map">
+		SELECT
+			 *
+		FROM BEGIN_CLASS_PRACTICE
+		WHERE CLASS_ID = #{CLASS_ID}
+	</select>
+
+	<update id="setPractice" parameterType="map">
+		UPDATE BEGIN_CLASS_PRACTICE SET
+			CHNG_DATE  = NOW()
+			, CHNG_ID = #{SESSION_ACC_ID}
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+		WHERE 
+			CLASS_ID = #{CLASS_ID}
+	</update>
+	
+	
+	<insert id="addHisPractice" parameterType="map">
+		INSERT INTO HIS_CLASS_PRACTICE_CHANGE (
+			CLASS_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{CLASS_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT CD_ADD_STATE FROM BEGIN_CLASS_PRACTICE WHERE CLASS_ID = #{CLASS_ID})
+		)
+	</insert>
+	<!--  실습 E -->
+	
+	
+	
+	
+	
+	
+	<!--  대체실습 S -->
+	<!--  3 S -->
+	<sql id="getSubPracticeRefineQuery">
+		/* getSubPracticeRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			,  
+			<include refid="bcsp" />
+			, bcl.CLASS_TITLE AS LOGIC_CLASS_TITLE
+		FROM BEGIN_CLASS_LOGIC bcl
+		JOIN BEGIN_CLASS_SUB_PRACTICE bcsp ON bcl.CLASS_ID = bcsp.CLASS_ID
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND bcsp.CD_ADD_STATE != '3'
+		<include refid="conditionSubPractice" />
+		ORDER BY bcsp.WRITED_DATE DESC
+	</sql>
+	
+	<select id="getSubPracticeCount" parameterType="map" resultType="int">
+		/* getSubPracticeCount */
+		SELECT COUNT(T2.NO) FROM (<include refid="getSubPracticeRefineQuery"/>) T2		
+		WHERE 1=1
+		AND CD_ADD_STATE != '3'
+	</select>
+	
+	<select id="getSubPracticeList" parameterType="map" resultType="map">
+		/* getSubPracticeList */
+		<include refid="getSubPracticeRefineQuery"/>
+		LIMIT #{PAGE_INDEX}, #{PAGE_SIZE}
+	</select>
+	
+    <sql id="conditionSubPractice">
+    		/* conditionSubPractice */
+
+		<if test="S_WRITED_DATE != null and S_WRITED_DATE != ''">
+			<![CDATA[	
+			AND date_format(bcsp.WRITED_DATE, '%Y-%m-%d')  >= #{S_WRITED_DATE} 					
+			]]>
+		</if>
+		<if test="E_WRITED_DATE != null and E_WRITED_DATE != ''">
+			<![CDATA[									
+			AND date_format(bcsp.WRITED_DATE, '%Y-%m-%d')  <= #{E_WRITED_DATE} 			
+			]]>
+		</if>		
+		<if test="LOGIC_CLASS_TITLE != null and LOGIC_CLASS_TITLE != ''"> 
+			AND bcl.CLASS_TITLE LIKE CONCAT('%', #{LOGIC_CLASS_TITLE}, '%') 
+		</if>
+		<if test="CLASS_TITLE != null and CLASS_TITLE != ''"> 
+			AND bcsp.CLASS_TITLE LIKE CONCAT('%', #{CLASS_TITLE}, '%') 
+		</if>
+		<if test="S_CHNG_DATE != null and S_CHNG_DATE != ''">
+			<![CDATA[	
+			AND date_format(bcsp.CHNG_DATE, '%Y-%m-%d')  >= #{S_CHNG_DATE} 					
+			]]>
+		</if>
+		<if test="E_CHNG_DATE != null and E_CHNG_DATE != ''">
+			<![CDATA[									
+			AND date_format(bcsp.CHNG_DATE, '%Y-%m-%d')  <= #{E_CHNG_DATE} 			
+			]]>
+		</if>			
+    </sql>
+    
+    
+	<sql id="bcsp">
+
+		 bcsp.CLASS_ID
+		, bcsp.AGC_ID
+		, DATE_FORMAT(bcsp.WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+		, bcsp.WRITED_ID
+		, DATE_FORMAT(bcsp.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, bcsp.CHNG_ID
+		, bcsp.CLASS_TITLE
+		, bcsp.CLASS_BEGIN_DATE
+		, bcsp.CLASS_END_DATE
+		, bcsp.STUDENT_TOTAL_COUNT
+		, bcsp.CLASS_NOTE
+		, CASE 
+			WHEN bcsp.CD_ADD_STATE=1 THEN '등록'
+			WHEN bcsp.CD_ADD_STATE=2 THEN '변경'
+			WHEN bcsp.CD_ADD_STATE=3 THEN '삭제'
+		    ELSE ''
+		  END AS CD_ADD_STATE
+		
+		, GET_USER_NAME(bcsp.CHNG_ID) AS USER_NAME
+		
+	</sql>
+	<!--  3 E -->
+	
+	
+	
+	<!--  4 S -->
+	<select id="getSubPracticeChangeList" parameterType="map" resultType="map">
+		/* getSubPracticeChangeList */
+		SELECT 
+		@rownum := @rownum+1 AS NO
+		, hcpc.CHNG_ID
+		, hcpc.CLASS_ID
+		, DATE_FORMAT(hcpc.CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+		, hcpc.CHNG_JSON
+		, CASE 
+			WHEN hcpc.CD_CHNG_STATE=1 THEN '등록'
+			WHEN hcpc.CD_CHNG_STATE=2 THEN '변경'
+			WHEN hcpc.CD_CHNG_STATE=3 THEN '삭제'
+		    ELSE ''
+		  END AS CD_CHNG_STATE		
+		, json_value(CHNG_JSON,'$.subPracticeDetail.CLASS_NOTE') AS CLASS_NOTE
+		FROM HIS_CLASS_SUB_PRACTICE_CHANGE hcpc
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND hcpc.CLASS_ID = #{CLASS_ID}
+		ORDER BY hcpc.CHNG_ID DESC
+	
+	</select>
+	<!--  4 E -->
+	
+
+	<select id="getSubPracticeDetail" parameterType="map" resultType="map">
+		SELECT
+			 *
+		FROM BEGIN_CLASS_SUB_PRACTICE
+		WHERE CLASS_ID = #{CLASS_ID}
+	</select>
+
+	<update id="setSubPractice" parameterType="map">
+		UPDATE BEGIN_CLASS_SUB_PRACTICE SET
+			CHNG_DATE  = NOW()
+			, CHNG_ID = #{SESSION_ACC_ID}
+			, CD_ADD_STATE = #{CD_ADD_STATE}
+		WHERE 
+			CLASS_ID = #{CLASS_ID}
+	</update>
+	
+	
+	<insert id="addHisSubPractice" parameterType="map">
+		INSERT INTO HIS_CLASS_SUB_PRACTICE_CHANGE (
+			CLASS_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+		) VALUES (
+			#{CLASS_ID}
+			, NOW()
+			, #{CHNG_JSON}
+			, (SELECT CD_ADD_STATE FROM BEGIN_CLASS_SUB_PRACTICE WHERE CLASS_ID = #{CLASS_ID})
+		)
+	</insert>
+	<!--  대체실습 E -->
+	
+
+	<!--  MAS_STUDENT S -->
+	
+	<sql id="getLogicStudentRefineQuery">
+		/* getLogicStudentRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			,  
+			<include refid="mst" />
+			<if test="CLASS_ID != null and CLASS_ID != ''">
+			,  IFNULL(mst.L_LECTURE_ID, '') AS CLASS_ID
+			</if> 
+			<if test="CLASS_ID == null or CLASS_ID == ''">
+			, '' AS CLASS_ID
+			</if> 
+		FROM MAS_STUDENT mst
+				  	
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+		AND mst.COMPLETE_DATE IS NULL
+		<include refid="conditionLogicStudent" />
+		
+	</sql>
+	
+	<select id="getLogicStudentCount" parameterType="map" resultType="int">
+		/* getLogicStudentCount */
+		SELECT COUNT(T2.NO) FROM (<include refid="getLogicStudentRefineQuery"/>) T2		
+		WHERE 1=1
+	</select>
+	
+	<select id="getLogicStudentList" parameterType="map" resultType="map">
+		/* getLogicStudentList */
+		<include refid="getLogicStudentRefineQuery"/>	
+			
+	</select>
+	
+    <sql id="conditionLogicStudent">
+    		/* conditionLogicStudent */
+
+		<if test="AGC_ID != null and AGC_ID != ''">
+			AND mst.AGC_ID = #{AGC_ID}
+		</if>    		
+		<if test="NO != null and NO != ''">
+			AND mst.NO = #{NO}
+		</if>			
+		<if test="CD_CLASS_TYPE != null and CD_CLASS_TYPE != ''">
+			AND mst.CD_CLASS_TYPE = #{CD_CLASS_TYPE}
+		</if>			
+		<if test="STU_NAME != null and STU_NAME != ''">
+			AND mst.STU_NAME LIKE CONCAT('%', #{STU_NAME}, '%') 
+		</if>			
+		<if test="STU_ID_NUMBER != null and STU_ID_NUMBER != ''">
+			AND mst.STU_ID_NUMBER LIKE CONCAT('%', #{STU_ID_NUMBER}, '%') 
+		</if>			
+		<if test="STU_TEL != null and STU_TEL != ''">
+			AND mst.STU_TEL LIKE CONCAT('%', #{STU_TEL}, '%') 
+		</if>				
+		
+		<if test="CLASS_ID != null and CLASS_ID != ''">
+			AND ( mst.L_LECTURE_ID =#{CLASS_ID} OR mst.L_LECTURE_ID IS NULL )
+		</if> 
+			
+		<if test='CLASS_TYPE == "1" '>
+			AND ( mst.L_LECTURE_ID IS NULL OR mst.L_LECTURE_ID = ${CLASS_ID}  )
+		</if>    			
+			
+		<if test="L_LECTURE_ID != null and L_LECTURE_ID != ''">
+			AND mst.L_LECTURE_ID = ${CLASS_ID}  
+		</if>    			
+    </sql>
+    
+    
+	<sql id="mst">
+		mst.STU_ID
+		,mst.AGC_ID
+		,mst.CD_CLASS_TYPE
+		, GET_CODE_BOTTOM_NAME('8','1',mst.CD_CLASS_TYPE) AS CLASS_NAME
+		,mst.LICENSE_SERIAL
+		,mst.STU_NAME
+		,mst.STU_ID_NUMBER
+		,mst.STU_TEL
+		,mst.STU_ZIP
+		,mst.STU_ADDRESS
+		,mst.L_LECTURE_ID
+		,mst.P_LECTURE_ID
+		,mst.S_LECTURE_ID
+		,mst.COMPLETE_REPORT_ID
+		,mst.ADD_DATE
+		,mst.CD_ADD_STATE
+		,mst.CHNG_DATE
+		,mst.COMPLETE_DATE
+		,mst.TEST_NAME
+		,mst.TEST_DATE
+		,mst.PASS_DATE
+		,mst.PASS_NUMBER
+		,mst.DISQUALIFICATION_YN
+		,mst.DISQUALIFICATION_DATE
+		,mst.L_TIME
+		,mst.P_TIME1
+		,mst.P_TIME2
+		,mst.S_TIME
+		,mst.STU_NOTE
+	</sql>
+
+	<!--  MAS_STUDENT E -->
+	
+	
+	
+	<!--  MAPPER_LOGIC_TIME_TABLE S -->	
+	<select id="getOldLogicList" parameterType="map" resultType="map">
+		/* getOldLogicList */
+		SELECT
+			 CLASS_ID
+			, AGC_ID
+			, DATE_FORMAT(WRITED_DATE, '%Y-%m-%d') AS WRITED_DATE
+			, WRITED_ID
+			, DATE_FORMAT(CHNG_DATE, '%Y-%m-%d') AS CHNG_DATE
+			, CHNG_ID
+			, CLASS_TITLE
+			, CLASS_BEGIN_DATE
+			, CLASS_END_DATE
+			, STUDENT_TOTAL_COUNT
+			, CLASS_NOTE
+			, CD_ADD_STATE		
+		FROM
+			BEGIN_CLASS_LOGIC 
+		WHERE 1=1
+		
+		<if test="CLASS_ID != null and CLASS_ID != ''">
+			AND CLASS_ID = #{CLASS_ID}
+		</if>    		
+	</select>	
+	<!--  MAPPER_LOGIC_TIME_TABLE E -->	
+	
+	
+	<!--  MAPPER_LOGIC_TIME_TABLE S -->	
+	<select id="getLogicTimeTableList" parameterType="map" resultType="map">
+		/* getLogicTimeTableList */
+		SELECT
+			mltt.MAPPER_ID
+			,mltt.CLASS_ID
+			,mltt.LECTURE_DATE
+			,mltt.BEGIN_TIME
+			,mltt.END_TIME
+			,mltt.CD_CLS_LEV1
+			 , GET_CODE_MIDDLE_NAME(4,mltt.CD_CLS_LEV1) AS CD_CLS_LEV1_NAME
+			,mltt.CD_CLS_LEV2
+			 , GET_CODE_BOTTOM_NAME(4, mltt.CD_CLS_LEV1 , mltt.CD_CLS_LEV2 ) 	 AS CD_CLS_LEV2_NAME
+			,mltt.AGT_ID
+			,GET_AGT_NAME(mltt.AGT_ID) AS AGT_NAME			
+		FROM
+		MAPPER_LOGIC_TIME_TABLE mltt
+		WHERE 1=1
+		
+		<if test="CLASS_ID != null and CLASS_ID != ''">
+			AND mltt.CLASS_ID = #{CLASS_ID}
+		</if>    		
+	</select>	
+	<!--  MAPPER_LOGIC_TIME_TABLE E -->	
+	
+	<!--  MAPPER_LOGIC_CLASS_AGENT S -->	
+	<select id="getLogicClassList" parameterType="map" resultType="map">
+		/* getLogicClassList */
+
+		SELECT
+			MAPPER_ID  
+			, CLASS_ID
+			, GET_CODE_MIDDLE_NAME(4,CD_CLS_LEV1) AS CD_CLS_LEV1_NAME			
+			, CD_CLS_LEV1
+			, GET_CODE_BOTTOM_NAME(4, CD_CLS_LEV1 , CD_CLS_LEV2 ) 	 AS CD_CLS_LEV2_NAME
+			, CD_CLS_LEV2
+			, ( SELECT   GROUP_CONCAT(GET_AGT_NAME(AGT_ID) SEPARATOR ',') AS AGT_ID_NAME1  FROM MAPPER_LOGIC_CLASS_AGENT  WHERE PARENT_ID = mlc.MAPPER_ID AND AGT_TYPE=1)  AS AGT_ID_NAME1	
+			, ( SELECT   GROUP_CONCAT(AGT_ID SEPARATOR ',') AS AGT_ID1 FROM MAPPER_LOGIC_CLASS_AGENT  WHERE PARENT_ID = mlc.MAPPER_ID AND AGT_TYPE=1 )  AS AGT_ID1
+			, ( SELECT   GROUP_CONCAT(GET_AGT_NAME(AGT_ID) SEPARATOR ',') AS AGT_ID_NAME2 FROM MAPPER_LOGIC_CLASS_AGENT  WHERE PARENT_ID = mlc.MAPPER_ID AND AGT_TYPE=2)  AS AGT_ID_NAME2	
+			, ( SELECT   GROUP_CONCAT(AGT_ID SEPARATOR ',') AS AGT_ID2 FROM MAPPER_LOGIC_CLASS_AGENT  WHERE PARENT_ID = mlc.MAPPER_ID AND AGT_TYPE=2 )  AS AGT_ID2
+		FROM MAPPER_LOGIC_CLASS mlc
+		WHERE 1=1
+
+		<if test="CLASS_ID != null and CLASS_ID != ''">
+			AND CLASS_ID = #{CLASS_ID}
+		</if>    			
+
+		<if test="CD_CLS_LEV != null and CD_CLS_LEV != ''">
+			AND CONCAT(CD_CLS_LEV1 , '_' , CD_CLS_LEV2) IN ( #{CD_CLS_LEV} )
+		</if>    	
+ORDER BY MAPPER_ID
+		
+	</select>	
+	<!--  MAPPER_LOGIC_CLASS_AGENT E -->	
+	
+	<insert id="addLogic" parameterType="map" useGeneratedKeys="true" keyProperty="CLASS_ID">
+		INSERT INTO BEGIN_CLASS_LOGIC (
+			 AGC_ID
+			, WRITED_DATE
+			, WRITED_ID
+			, CHNG_DATE
+			, CHNG_ID
+			, CLASS_TITLE
+			, CLASS_BEGIN_DATE
+			, CLASS_END_DATE
+			, STUDENT_TOTAL_COUNT
+			, CLASS_NOTE
+			, CD_ADD_STATE
+		) VALUES (
+			 #{AGC_ID}
+			, NOW()
+			, #{ACC_ID}
+			, NOW()
+			, #{ACC_ID}
+			, #{CLASS_TITLE}
+			, #{CLASS_BEGIN_DATE}
+			, #{CLASS_END_DATE}
+			, #{STUDENT_TOTAL_COUNT}
+			, #{CLASS_NOTE}
+			, #{CD_ADD_STATE}
+		)
+		
+		<selectKey resultType="int" keyProperty="CLASS_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+		
+	</insert>
+	
+	
+	
+	<delete id="removeStudent" parameterType="map">
+	
+	DELETE FROM  MAPPER_LOGIC_STUDENT
+	WHERE 1=1
+		AND CLASS_ID = #{CLASS_ID}
+		<if test="STU_ID != null and STU_ID != ''">
+		AND STU_ID NOT IN 
+			(
+			SELECT
+				STU_ID
+			FROM 
+				MAPPER_LOGIC_STUDENT
+			WHERE 1=1
+			
+				AND STU_ID IN ( ${STU_ID} ) 
+			)	
+		</if>    		
+	</delete>
+	
+	
+	<insert id="addStudent" parameterType="map">
+		INSERT INTO MAPPER_LOGIC_STUDENT (
+			 CLASS_ID
+			, STU_ID
+		) 
+		
+		SELECT
+			#{CLASS_ID}
+			, mst.STU_ID
+		FROM 
+			MAS_STUDENT mst 
+		WHERE 1=1
+			AND mst.STU_ID IN ( ${STU_ID} ) 
+			AND mst.STU_ID NOT IN 
+			(
+			SELECT
+				STU_ID
+			FROM 
+				MAPPER_LOGIC_STUDENT
+			WHERE 1=1
+				AND STU_ID IN ( ${STU_ID} ) 
+				AND CLASS_ID = #{CLASS_ID}
+			) 
+	</insert>
+	
+	
+	
+	<update id="removeLectureId" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			L_LECTURE_ID = NULL
+			, CHNG_DATE = now()
+		WHERE
+			L_LECTURE_ID = ${CLASS_ID}
+		<if test="STU_ID != null and STU_ID != ''">
+		AND STU_ID NOT IN 
+			(
+			SELECT
+				STU_ID
+			FROM 
+				MAS_STUDENT
+			WHERE 1=1			
+				AND STU_ID IN ( ${STU_ID} ) 
+				AND L_LECTURE_ID = ${CLASS_ID}
+			)	
+		</if>    				
+	</update>
+	
+		
+	<update id="addLectureId" parameterType="map">
+		UPDATE MAS_STUDENT SET
+			L_LECTURE_ID = ${CLASS_ID}
+			, CHNG_DATE = now()
+		WHERE 
+			L_LECTURE_ID IS NULL 
+		<if test="STU_ID != null and STU_ID != ''">
+		AND STU_ID IN 
+			(
+			SELECT
+				STU_ID
+			FROM 
+				MAS_STUDENT
+			WHERE 1=1			
+				AND STU_ID IN ( ${STU_ID} ) 
+				AND L_LECTURE_ID IS NULL
+			)	
+		</if>    				
+	</update>
+	
+		
+	
+	<select id="getAgentList" parameterType="map" resultType="map">
+	 /* getAgentList */
+		SELECT
+			mag.AGT_ID 
+			, mag.AGT_NAME
+		FROM MAS_AGENT mag
+		WHERE 1=1
+		AND mag.AGC_ID = #{AGC_ID}
+		AND mag.CD_ADD_STATE != 3
+
+		ORDER BY mag.AGT_NAME
+				
+	</select>
+	
+	
+	
+	<select id="getSelectAgentList" parameterType="map" resultType="map">
+	 /* getSelectAgentList */
+	SELECT
+			mag.AGT_ID 
+			, mag.CD_AGT_TYPE
+			, GET_CODE_BOTTOM_NAME(3,1,mag.CD_AGT_TYPE) CD_AGT_TYPE_NAME
+			, mag.AGT_NAME
+		FROM MAS_AGENT mag
+		WHERE 1=1
+		AND mag.AGC_ID = #{AGC_ID}
+		AND mag.CD_ADD_STATE != 3
+		ORDER BY mag.AGT_NAME
+				
+	</select>
+	
+	
+	<delete id="removeLogicTimeTable" parameterType="String">
+		DELETE FROM MAPPER_LOGIC_TIME_TABLE WHERE MAPPER_ID = #{MAPPER_ID}
+	</delete>
+	
+	<update id="setLogicTimeTable" parameterType="map">
+		UPDATE MAPPER_LOGIC_TIME_TABLE SET
+			LECTURE_DATE = #{LECTURE_DATE}
+			, BEGIN_TIME = #{BEGIN_TIME}
+			, END_TIME = #{END_TIME}
+			, CD_CLS_LEV1 = #{CD_CLS_LEV1}
+			, CD_CLS_LEV2 = #{CD_CLS_LEV2}
+			, AGT_ID = #{AGT_ID}
+		WHERE
+			MAPPER_ID = #{MAPPER_ID}
+	</update>
+	
+	<insert id="addLogicTimeTable" parameterType="map">
+		INSERT INTO MAPPER_LOGIC_TIME_TABLE (
+			CLASS_ID
+			, LECTURE_DATE
+			, BEGIN_TIME
+			, END_TIME
+			, CD_CLS_LEV1
+			, CD_CLS_LEV2
+			, AGT_ID
+		) VALUES (
+			#{CLASS_ID}
+			, #{LECTURE_DATE}
+			, #{BEGIN_TIME}
+			, #{END_TIME}
+			, #{CD_CLS_LEV1}
+			, #{CD_CLS_LEV2}
+			, #{AGT_ID}
+		)
+	</insert>
+	
+	
+	
+	
+	
+	<delete id="removeLogicClassAgent" parameterType="map">
+	
+	DELETE FROM  MAPPER_LOGIC_CLASS_AGENT
+	WHERE 1=1
+		AND PARENT_ID = #{PARENT_ID}
+		<if test="AGT_ID != null and AGT_ID != ''">
+		AND AGT_ID NOT IN 
+		( 
+			SELECT
+				AGT_ID
+			FROM 
+				MAPPER_LOGIC_CLASS_AGENT
+			WHERE 1=1
+			
+				AND AGT_ID IN ( ${AGT_ID} ) 		
+		 ) 
+		</if>
+		AND AGT_TYPE = ${AGT_TYPE}	
+				
+	</delete>
+	
+	
+	<insert id="addLogicClassAgent" parameterType="map">
+				
+		INSERT
+		MAPPER_LOGIC_CLASS_AGENT
+		( PARENT_ID
+		, AGT_ID
+		, AGT_TYPE )
+		SELECT
+			#{PARENT_ID}
+			, AGT_ID
+			,${AGT_TYPE}	
+		FROM 
+			MAS_AGENT
+		WHERE 1=1
+			AND AGT_ID IN ( ${AGT_ID} ) 
+			AND AGT_ID NOT IN 
+			(
+			SELECT
+				AGT_ID
+			FROM 
+				MAPPER_LOGIC_CLASS_AGENT
+			WHERE 1=1
+				AND  PARENT_ID=#{PARENT_ID}
+				AND AGT_ID IN ( ${AGT_ID} ) 
+				AND AGT_TYPE = ${AGT_TYPE}	
+			)
+		
+	</insert>
+	
+	<insert id="addLogicClass" parameterType="map"  useGeneratedKeys="true" keyProperty="MAPPER_ID">
+				
+		INSERT
+		MAPPER_LOGIC_CLASS
+		( CLASS_ID
+		, CD_CLS_LEV1
+		, CD_CLS_LEV2 )
+		VALUES
+		(
+		  #{CLASS_ID}
+		, #{CD_CLS_LEV1}
+		, #{CD_CLS_LEV2}
+		)
+		
+		<selectKey resultType="int" keyProperty="MAPPER_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+      	
+	</insert>
+	
+	<delete id="removeLogicClass" parameterType="map">
+	
+	DELETE FROM  MAPPER_LOGIC_CLASS
+	WHERE 1=1
+		AND MAPPER_ID = #{PARENT_ID}
+	</delete>
+	
+	<delete id="removeLogicClassAgentAll" parameterType="map">
+	
+	DELETE FROM  MAPPER_LOGIC_CLASS_AGENT
+	WHERE 1=1
+		AND PARENT_ID = #{PARENT_ID}
+	</delete>
+	
+	<select id="getHisLogicStepDetail" parameterType="map" resultType="map">
+		SELECT
+			CHNG_ID
+			, CLASS_ID
+			, CHNG_DATE
+			, CHNG_JSON
+			, CD_CHNG_STATE
+			, JSON_EXTRACT(CHNG_JSON, '$."logicDetail"') AS logicDetail
+			, JSON_EXTRACT(CHNG_JSON, '$."logicClassList"') AS logicClassList
+			, JSON_EXTRACT(CHNG_JSON, '$."logicTimeTableList"') AS logicTimeTableList
+			, JSON_EXTRACT(CHNG_JSON, '$."logicStudentList"') AS logicStudentList
+		FROM HIS_CLASS_LOGIC_CHANGE
+		WHERE CHNG_ID = #{CHNG_ID}
+	</select>
+	
+	<!-- ***************** 실습  ************************************************************************** -->
+		
+	<select id="getPracticeStudentList" parameterType="map" resultType="map">
+		/* getPracticeStudentList */
+		<include refid="getPracticeStudentRefineQuery"/>	
+			
+	</select>
+	
+	<sql id="getPracticeStudentRefineQuery">
+		/* getPracticeStudentRefineQuery */
+		SELECT 
+			@rownum := @rownum+1 AS NO
+			,  
+			<include refid="mst" />
+			<if test="CLASS_ID != null and CLASS_ID != ''">
+			,  IFNULL(mst.P_LECTURE_ID, '') AS CLASS_ID
+			</if> 
+			<if test="CLASS_ID == null or CLASS_ID == ''">
+			, '' AS CLASS_ID
+			</if> 
+		FROM MAS_STUDENT mst
+				  	
+		, (SELECT @rownum := IFNULL(#{PAGE_INDEX}, 0)) R
+		WHERE 1=1
+
+		AND mst.COMPLETE_DATE IS NULL
+		<include refid="conditionPracticeStudent" />		
+	</sql>
+	
+    <sql id="conditionPracticeStudent">
+    		/* conditionPracticeStudent */
+		<if test="AGC_ID != null and AGC_ID != ''">
+			AND mst.AGC_ID = #{AGC_ID}
+		</if>    		
+		
+		<if test="NO != null and NO != ''">
+			AND mst.NO = #{NO}
+		</if>			
+		<if test="CD_CLASS_TYPE != null and CD_CLASS_TYPE != ''">
+			AND mst.CD_CLASS_TYPE = #{CD_CLASS_TYPE}
+		</if>			
+		<if test="STU_NAME != null and STU_NAME != ''">
+			AND mst.STU_NAME LIKE CONCAT('%', #{STU_NAME}, '%') 
+		</if>			
+		<if test="STU_ID_NUMBER != null and STU_ID_NUMBER != ''">
+			AND mst.STU_ID_NUMBER LIKE CONCAT('%', #{STU_ID_NUMBER}, '%') 
+		</if>			
+		<if test="STU_TEL != null and STU_TEL != ''">
+			AND mst.STU_TEL LIKE CONCAT('%', #{STU_TEL}, '%') 
+		</if>						
+		<if test="CLASS_ID != null and CLASS_ID != ''">
+			AND ( mst.P_LECTURE_ID =#{CLASS_ID} OR mst.P_LECTURE_ID IS NULL )
+		</if> 						
+		<if test='CLASS_TYPE == "2"  '>
+			AND mst.P_LECTURE_ID IS NULL
+		</if>    					
+		<if test="P_LECTURE_ID != null and P_LECTURE_ID != ''">
+			AND mst.P_LECTURE_ID = ${CLASS_ID}  
+		</if>    			
+    </sql>
+    	
+	<select id="getPracticeTimeTableList" parameterType="map" resultType="map">
+		/* getPracticeTimeTableList */
+		SELECT
+			mptt.MAPPER_ID
+			,mptt.CLASS_ID
+			,mptt.CD_FACILITY_LEV1
+			 , GET_CODE_MIDDLE_NAME(4,mptt.CD_FACILITY_LEV1) AS CD_FACILITY_LEV1_NAME
+			,mptt.CD_FACILITY_LEV2
+			 , GET_CODE_BOTTOM_NAME(4, mptt.CD_FACILITY_LEV1 , mptt.CD_FACILITY_LEV2 ) 	 AS CD_FACILITY_LEV2_NAME
+			,mptt.SAGC_ID
+			,GET_SAGC_NAME(mptt.SAGC_ID) AS SAGC_NAME	
+			,mptt.BEGIN_DATE
+			,mptt.END_DATE
+			, '' AS STU_IDS 
+			, '10' AS STU_COUNT
+		FROM
+		MAPPER_PRACTICE_TIME_TABLE mptt
+		WHERE 1=1
+		
+		<if test="CLASS_ID != null and CLASS_ID != ''">
+			AND mptt.CLASS_ID = #{CLASS_ID}
+		</if>    		
+	</select>	
+	
+	
+	
+	<select id="getSubAgencyList" parameterType="map" resultType="map">
+	 /* getSubAgencyList */
+		SELECT
+			SAGC_ID 
+			, SAGC_NAME
+		FROM MAS_SUB_AGENCY
+		WHERE 1=1
+		AND AGC_ID = #{AGC_ID}
+		<if test="CD_FACILITY_LEV1 != null and CD_FACILITY_LEV1 != ''">
+		AND CD_FACILITY_LEV1 = #{CD_FACILITY_LEV1}
+		</if>    			
+		<if test="CD_FACILITY_LEV2 != null and CD_FACILITY_LEV2 != ''">
+		AND CD_FACILITY_LEV2 = #{CD_FACILITY_LEV2}
+		</if>  		
+		AND CD_ADD_STATE != 3
+
+		ORDER BY SAGC_NAME
+				
+	</select>
+	
+	
+</mapper>

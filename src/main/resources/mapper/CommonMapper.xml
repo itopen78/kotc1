@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.kotc.mapper.CommonMapper">
+	
+	<select id="getCommonListByTop" parameterType="map" resultType="map">
+		SELECT
+			CD_TOP AS CODE
+			, CD_TOP_KR AS NAME
+		FROM MAS_CODE
+		WHERE 1=1
+		<if test="CD_TOP != null and CD_TOP != ''">
+			AND CD_TOP = #{CD_TOP}
+		</if>
+		GROUP BY CD_TOP
+		ORDER BY CD_TOP
+	</select>
+	
+	<select id="getCommonListByMiddle" parameterType="map" resultType="map">
+		SELECT
+			CD_MIDDLE AS CODE
+			, CD_MIDDLE_KR AS NAME
+		FROM MAS_CODE
+		WHERE 1=1
+		AND CD_TOP = #{CD_TOP}
+		<if test="CD_MIDDLE != null and CD_MIDDLE != ''">
+			AND CD_MIDDLE = #{CD_MIDDLE}
+		</if>
+		GROUP BY CD_TOP, CD_MIDDLE 
+		ORDER BY CD_TOP, CD_MIDDLE
+	</select>
+	
+	<select id="getCommonListByBottom" parameterType="map" resultType="map">
+		SELECT
+			CD_BOTTOM AS CODE
+			, CD_BOTTOM_KR AS NAME
+		FROM MAS_CODE
+		WHERE 1=1
+		AND CD_TOP = #{CD_TOP}
+		AND CD_MIDDLE = #{CD_MIDDLE}
+		<if test="CD_BOTTOM != null and CD_BOTTOM != ''">
+			AND CD_BOTTOM = #{CD_BOTTOM}
+		</if>
+		GROUP BY CD_TOP, CD_MIDDLE, CD_BOTTOM
+		ORDER BY CD_TOP, CD_MIDDLE, CD_BOTTOM
+	</select>
+	
+	<select id="getCodeList" parameterType="map" resultType="map">
+		SELECT
+			*
+		FROM MAS_CODE
+		WHERE 1=1
+		<if test="CD_TOP != null and CD_TOP != ''">
+			AND CD_TOP = #{CD_TOP}
+		</if>
+		<if test="CD_MIDDLE != null and CD_MIDDLE != ''">
+			AND CD_MIDDLE = #{CD_MIDDLE}
+		</if>
+		<if test="CD_BOTTOM != null and CD_BOTTOM != ''">
+			AND CD_BOTTOM = #{CD_BOTTOM}
+		</if>
+		ORDER BY CD_TOP, CD_MIDDLE, CD_BOTTOM
+	</select>
+</mapper>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.kotc.api.FileMapper">
+	
+	<select id='selectFile' parameterType='map' resultType='map'>
+		SELECT	FILE_ID,
+				TABLE_ID,
+				REF_ID,
+				FILE_TYPE,
+				FILE_NAME,
+				FILE_EXT,
+				FILE_PATH,
+				FILE_SIZE,
+				DATE_FORMAT(REG_DATE, '%Y.%m.%d') AS REG_DATE
+		FROM	BS_FILE
+		WHERE	TABLE_ID	= #{TABLE_ID}
+		AND		REF_ID		= #{REF_ID}
+		<if test="FILE_TYPE != null and FILE_TYPE != ''">
+		AND		FILE_TYPE	= #{FILE_TYPE}
+		</if>
+	</select>
+	
+	<select id='viewFile' parameterType='map' resultType='map'>
+		SELECT	TABLE_ID,
+				REF_ID,
+				FILE_TYPE,
+				FILE_NAME,
+				FILE_EXT,
+				FILE_PATH,
+				FILE_SIZE,
+				DATE_FORMAT(REG_DATE, '%Y.%m.%d') AS REG_DATE
+		FROM	BS_FILE
+		WHERE	FILE_ID = #{FILE_ID}
+	</select>
+	
+	<insert id='insertFile' parameterType='map'>
+		INSERT	INTO	BS_FILE	(
+				TABLE_ID,
+				REF_ID,
+				FILE_TYPE,
+				FILE_NAME,
+				FILE_EXT,
+				FILE_PATH,
+				FILE_SIZE,
+				REG_ID,
+				REG_DATE,
+				MOD_ID,
+				MOD_DATE
+		)		VALUES			(
+				#{TABLE_ID},
+				#{REF_ID},
+				#{FILE_TYPE},
+				#{FILE_NAME},
+				#{FILE_EXT},
+				#{FILE_PATH},
+				#{FILE_SIZE},
+				#{REG_ID},
+				NOW(),
+				NULL,
+				NULL
+		)
+		<selectKey resultType="int" keyProperty="FILE_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id='updateFile' parameterType='map'>
+		UPDATE	BS_FILE
+		SET		FILE_TYPE	= #{FILE_TYPE},
+				FILE_NAME	= #{FILE_NAME},
+				FILE_EXT	= #{FILE_EXT},
+				FILE_PATH	= #{FILE_PATH},
+				FILE_SIZE	= #{FILE_SIZE},
+				MOD_ID		= #{REG_ID},
+				MOD_DATE	= NOW()
+		WHERE	FILE_ID 	= #{FILE_ID}
+	</update>
+	
+	<delete id='deleteFile' parameterType='map'>
+		DELETE
+		FROM	BS_FILE
+		<if test="FILE_ID != null and FILE_ID != ''">
+		WHERE	FILE_ID 	= #{FILE_ID}
+		</if>
+		<if test="TABLE_ID != null and TABLE_ID != ''">
+		WHERE	TABLE_ID 	= #{TABLE_ID}
+		AND		REF_ID 		= #{REF_ID}
+		</if>
+		<if test="FILE_TYPE != null and FILE_TYPE != ''">
+		AND		FILE_TYPE 	= #{FILE_TYPE}
+		</if>
+		<if test="!(FILE_ID != null and FILE_ID != '') and !(TABLE_ID != null and TABLE_ID != '')">
+		!error!
+		</if>
+	</delete>
+
+	<delete id="removeFile" parameterType="map">
+		DELETE FROM MAS_FILE WHERE CD_TABLE = #{CD_TABLE} AND ID_PK = #{ID_PK}
+	</delete>
+	
+	<select id="getFile" parameterType="map" resultType="map">
+		SELECT * FROM MAS_FILE WHERE CD_TABLE = #{CD_TABLE} AND ID_PK = #{ID_PK}
+	</select>
+	
+	<insert id="addFile" parameterType="map">
+		INSERT INTO MAS_FILE (
+			CD_TABLE
+			, ID_PK
+			, ORIGINAL_FILE_NAME
+			, SERVER_FILE_NAME
+		) VALUES (
+			#{CD_TABLE}
+			, #{ID_PK}
+			, #{ORIGINAL_FILE_NAME}
+			, #{SERVER_FILE_NAME}
+		)
+		<selectKey resultType="int" keyProperty="FILE_ID" order="AFTER">
+			SELECT	LAST_INSERT_ID();
+      	</selectKey>
+	</insert>
+	
+	<update id="setFile" parameterType="map">
+		UPDATE MAS_FILE SET
+			CD_TABLE = #{CD_TABLE}
+			, ID_PK = #{ID_PK}
+			, ORIGINAL_FILE_NAME = #{ORIGINAL_FILE_NAME}
+			, SERVER_FILE_NAME = #{SERVER_FILE_NAME}
+		WHERE 
+			CD_TABLE = #{CD_TABLE} AND ID_PK = #{ID_PK}
+	</update>
+</mapper>
